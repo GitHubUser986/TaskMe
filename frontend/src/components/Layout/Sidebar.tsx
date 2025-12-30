@@ -148,9 +148,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentPage, onPageChange, userRole }
     <div className="sidebar">
       <div className="sidebar-header">
         <div className="sidebar-logo">
-          <span style={{ fontSize: '2rem' }}>📱</span>
+          <img src={logo} alt="Taskme Logo" />
         </div>
-        <h2 className="sidebar-title">Taskme</h2>
         <p className="sidebar-subtitle">Gestion des tâches</p>
       </div>
 
