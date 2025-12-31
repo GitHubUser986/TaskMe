@@ -36,8 +36,7 @@ function App() {
           element={
             <Layout userName={userName}>
               <Routes>
-                <Route path="/" element={<Navigate to="/dashboard" />} />
-                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/" element={<Dashboard />} />
                 <Route path="/create-task" element={<TaskForm />} />
                 <Route path="/tasks" element={<TaskManagement />} />
                 <Route path="/my-tasks" element={<MyTasks />} />
