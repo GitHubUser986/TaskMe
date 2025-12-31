@@ -9,6 +9,7 @@ const Sidebar: React.FC = () => {
   const menuItems = [
     { to: '/', icon: Home, label: 'Accueil' },
     { to: '/tasks', icon: ListTodo, label: 'Gestion des tâches' },
+    { to: '/assignment', icon: ListTodo, label: 'Gestion des affectations' },
     { to: '/users', icon: Users, label: 'Gestion des utilisateurs' },
     { to: '/vehicles', icon: Car, label: 'Gestion des véhicules' },
   ];
