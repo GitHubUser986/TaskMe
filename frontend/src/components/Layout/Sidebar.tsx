@@ -30,7 +30,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
       children: [
         { id: 'create-task', label: 'Créer une tâche', icon: '➕', roles: ['superAdmin', 'admin'], path: '/create-task' },
         { id: 'list-tasks', label: 'Liste des tâches', icon: '📝', roles: ['superAdmin', 'admin', 'user'], path: '/tasks' },
-        { id: 'affectation', label: 'Affectation', icon: '👥', roles: ['superAdmin', 'admin'], path: '/affectation' }
+        { id: 'affectation', label: 'Affectation', icon: '👥', roles: ['superAdmin', 'admin'], path: '/assignment' }
       ]
     },
     { id: 'my-tasks', label: 'Mes tâches', icon: '✅', roles: ['superAdmin', 'admin', 'user'], path: '/my-tasks' },
@@ -141,6 +141,11 @@ const Sidebar: React.FC<SidebarProps> = ({ userRole }) => {
         <NavLink to="/profile" className="sidebar-item">
           <span className="sidebar-icon">👤</span>
           <span className="sidebar-label">Mon profil</span>
+        </NavLink>
+
+        <NavLink to="/login" className="sidebar-item">
+          <span className="sidebar-icon">📲</span>
+          <span className="sidebar-label">Connexion</span>
         </NavLink>
 
         <NavLink to="/logout" className="sidebar-item">

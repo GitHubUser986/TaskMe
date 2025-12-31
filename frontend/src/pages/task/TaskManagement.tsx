@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface Task {
   id: number;
@@ -19,6 +20,7 @@ interface Task {
 }
 
 const TaskManagement: React.FC = () => {
+  const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([
     {
       id: 1,
@@ -139,10 +141,6 @@ const TaskManagement: React.FC = () => {
     setSelectedTask(null);
   };
 
-  const handleCreateTask = () => {
-    alert('Redirection vers le formulaire de création de tâche');
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
@@ -151,7 +149,7 @@ const TaskManagement: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-800">Gestion des tâches</h1>
             
             <button
-              onClick={handleCreateTask}
+              onClick={() => navigate('/create-task')}
               className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors whitespace-nowrap"
             >
               ➕ Nouvelle tâche

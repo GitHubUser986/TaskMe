@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 interface Vehicle {
   id: number;
@@ -9,6 +10,7 @@ interface Vehicle {
 }
 
 const VehiclesManagement: React.FC = () => {
+  const navigate = useNavigate();
   const [vehicles, setVehicles] = useState<Vehicle[]>([
     {
       id: 1,
@@ -78,10 +80,16 @@ const VehiclesManagement: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="mb-6">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <h1 className="text-3xl font-bold text-gray-800">Gestion des véhicules</h1>
+          <button
+            onClick={() => navigate('/vehicles/add')}
+            className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors whitespace-nowrap"
+            >
+                ➕ Nouvel véhicule
+              </button>
         </div>
-
+<br />
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full">

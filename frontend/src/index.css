@@ -1,3 +1,61 @@
+/* src/index.css */
+
+/* 1️⃣ Import Tailwind */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* 2️⃣ Import et définition de la police Montserrat */
+@font-face {
+  font-family: 'Montserrat';
+  src: url('/fonts/Montserrat-VariableFont_wght.ttf') format('truetype');
+  font-weight: 100 900; /* Variable font */
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 3️⃣ Reset global et police par défaut */
+html, body, #root {
+  @apply m-0 p-0 box-border;
+  font-family: 'Montserrat', sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 500;
+  background-color: #f9fafb; /* correspond à bg-gray-50 */
+  color: #111827; /* correspond à text-gray-900 */
+}
+
+/* 4️⃣ Style global pour tous les éléments */
+* {
+  box-sizing: border-box;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 500;
+  font-optical-sizing: auto;
+  margin: 0;
+  padding: 0;
+}
+
+/* 5️⃣ Liens et boutons */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+/* 6️⃣ Scrollbar (optionnel) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f3f4f6; /* bg-gray-100 */
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #9ca3af; /* gray-400 */
+  border-radius: 4px;
+  border: 2px solid #f3f4f6;
+}
