@@ -7,6 +7,8 @@ const chatSchema = new mongoose.Schema({
   ID_TACHE: { type: String, required: true },
   DATE_ENVOI: { type: Date, required: true },
   MESSAGE: { type: String, required: true }
+}, {
+  collection: "chat"
 });
 
 export default mongoose.model("Chat", chatSchema);

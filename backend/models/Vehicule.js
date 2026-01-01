@@ -7,6 +7,8 @@ const vehiculeSchema = new mongoose.Schema({
   MODELE: { type: String, required: true },
   DISPONIBLE: { type: Boolean, required: true },
   CAPACITE: { type: Number, required: true }
+}, {
+  collection: "vehicule"
 });
 
 export default mongoose.model("Vehicule", vehiculeSchema);

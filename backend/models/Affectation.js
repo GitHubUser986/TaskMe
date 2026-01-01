@@ -10,6 +10,9 @@ const affectationSchema = new mongoose.Schema({
   STATUS: { type: String, enum: ["En cours", "Terminée", "À venir"], required: true },
   DECISION: { type: String, enum: ["Acceptée", "Refusée", "Déléguée"], required: true },
   ID_AUDITEUR_DELEGUE: [String] // optionnel si délégation
+},
+{
+  collection: "affectation"
 });
 
 export default mongoose.model("Affectation", affectationSchema);

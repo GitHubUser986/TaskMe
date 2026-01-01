@@ -18,6 +18,8 @@ const tacheSchema = new mongoose.Schema({
   DIRECTION: { type: String, enum: ["ligne Rabat-Casa", "ligne Meknès-Errachidia", "ligne Marrakech-Agadir"], required: true },
   FICHIER_ADMINISTRATIF: String,
   NOMBRE_PLACES: { type: Number, required: true }
+}, {
+  collection: "tache"
 });
 
 export default mongoose.model("Tache", tacheSchema);

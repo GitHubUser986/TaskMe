@@ -1,6 +1,5 @@
 import express from "express";
 import Tache from "../models/Tache.js";
-import User from "../models/User.js";
 
 const router = express.Router();
 

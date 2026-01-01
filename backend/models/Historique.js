@@ -6,6 +6,8 @@ const historiqueSchema = new mongoose.Schema({
   ID_TACHE: { type: String, required: true },
   DETAILS: { type: String, required: true },
   ACTION: { type: String, required: true }
+}, {
+  collection: "historique"
 });
 
 export default mongoose.model("Historique", historiqueSchema);

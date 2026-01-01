@@ -6,6 +6,8 @@ const notificationSchema = new mongoose.Schema({
   LUE: { type: Boolean, default: false },
   MESSAGE: { type: String, required: true },
   TYPE: { type: String, enum: ["Information", "Echoue", "Rappel", "Succès"], required: true }
+}, {
+  collection: "notification"
 });
 
 export default mongoose.model("Notification", notificationSchema);

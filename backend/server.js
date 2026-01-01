@@ -1,26 +1,96 @@
-require('dotenv').config();
-const { MongoClient, ServerApiVersion } = require('mongodb');
-const uri = process.env.MONGO_URI;
+import express from "express";
+import dotenv from "dotenv";
+import cors from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
+import connectDB from "./config/db.js";
 
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
+// Routes
+import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import vehiculeRoutes from "./routes/vehiculeRoutes.js";
+import tacheRoutes from "./routes/tacheRoutes.js";
+import affectationRoutes from "./routes/affectationRoutes.js";
+import chatRoutes from "./routes/chatRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import historiqueRoutes from "./routes/historiqueRoutes.js";
+
+dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// 🔹 Middleware de base
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  credentials: true
+}));
+app.use(helmet());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(morgan("dev"));
+
+// 🔹 Routes
+app.use("/api/auth", authRoutes);        // Routes d'authentification
+app.use("/api/user", userRoutes);
+app.use("/api/vehicule", vehiculeRoutes);
+app.use("/api/tache", tacheRoutes);
+app.use("/api/affectation", affectationRoutes);
+app.use("/api/chat", chatRoutes);
+app.use("/api/notification", notificationRoutes);
+app.use("/api/historique", historiqueRoutes);
+
+// Route de base (test)
+app.get("/", (req, res) => {
+  res.json({ 
+    success: true,
+    message: "Backend TaskMe is running!",
+    version: "1.0.0"
+  });
 });
 
-async function run() {
+// Route de santé (health check)
+app.get("/api/health", (req, res) => {
+  res.json({ 
+    success: true,
+    status: "healthy",
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Gestion des routes non trouvées
+app.use((req, res) => {
+  res.status(404).json({ 
+    success: false,
+    message: `Route ${req.originalUrl} non trouvée` 
+  });
+});
+
+// Gestion des erreurs globales
+app.use((err, req, res, next) => {
+  console.error('Erreur:', err.stack);
+  
+  res.status(err.status || 500).json({ 
+    success: false,
+    message: err.message || "Erreur interne du serveur",
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+  });
+});
+
+// Connexion à MongoDB et lancement du serveur
+const startServer = async () => {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
+    await connectDB();
+    
+    app.listen(PORT, () => {
+      console.log(`Serveur démarré sur le port ${PORT}`);
+      console.log(`Environnement: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`URL: http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error('Erreur lors du démarrage du serveur:', error);
+    process.exit(1);
   }
-}
-run().catch(console.dir);
+};
+
+startServer();
