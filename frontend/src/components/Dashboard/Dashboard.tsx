@@ -56,9 +56,7 @@ const Dashboard: React.FC = () => {
   return (
     <div className="page active" id="dashboard">
       <div className="container">
-        <div className="page-header">
-          <h1 className="page-title">Tableau de bord</h1>
-        </div>
+        
 
         {/* Stats Grid */}
         <div className="stats-grid">
