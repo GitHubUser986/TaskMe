@@ -1,64 +1,35 @@
-import express from "express";
-import User from "../models/User.js";
+import express from 'express';
+import {
+  getAllUsers,
+  getUserById,
+  createUser,
+  updateUser,
+  toggleUserStatus,
+  deleteUser,
+  getUserStats
+} from '../controllers/userController.js';
+import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// 🔹 GET all users
-router.get("/", async (req, res) => {
-  try {
-    const users = await User.find();
-    res.json(users);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
+// Toutes les routes nécessitent une authentification
+router.use(protect);
 
-// 🔹 GET user by ID
-router.get("/:id", async (req, res) => {
-  try {
-    const user = await User.findOne({ ID: req.params.id });
-    if (!user) return res.status(404).json({ message: "User not found" });
-    res.json(user);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
+// Statistiques (Admin et SuperAdmin)
+router.get('/stats', authorize('ADMIN', 'SUPERADMIN'), getUserStats);
 
-// 🔹 POST create new user
-router.post("/", async (req, res) => {
-  const user = new User(req.body);
-  try {
-    await user.save();
-    res.status(201).json(user);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
+// Liste et création d'utilisateurs
+router.route('/')
+  .get(getAllUsers)  // Tous les utilisateurs authentifiés peuvent voir la liste
+  .post(authorize('ADMIN', 'SUPERADMIN'), createUser);  // Seulement Admin/SuperAdmin peuvent créer
 
-// 🔹 PUT update user
-router.put("/:id", async (req, res) => {
-  try {
-    const updatedUser = await User.findOneAndUpdate(
-      { ID: req.params.id },
-      req.body,
-      { new: true }
-    );
-    if (!updatedUser) return res.status(404).json({ message: "User not found" });
-    res.json(updatedUser);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
+// Opérations sur un utilisateur spécifique
+router.route('/:id')
+  .get(getUserById)
+  .put(authorize('ADMIN', 'SUPERADMIN'), updateUser)
+  .delete(authorize('SUPERADMIN'), deleteUser);  // Seulement SuperAdmin peut supprimer
 
-// 🔹 DELETE user
-router.delete("/:id", async (req, res) => {
-  try {
-    const deletedUser = await User.findOneAndDelete({ ID: req.params.id });
-    if (!deletedUser) return res.status(404).json({ message: "User not found" });
-    res.json({ message: "User deleted" });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-});
+// Basculer le statut actif/inactif
+router.patch('/:id/toggle-status', authorize('ADMIN', 'SUPERADMIN'), toggleUserStatus);
 
 export default router;

@@ -1,237 +1,267 @@
-import jwt from 'jsonwebtoken';
-import bcrypt from 'bcryptjs';
-import User from '../models/User.js';
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
 
-// Générer un token JWT
+// ==============================
+// Génération du token JWT
+// ==============================
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRE || '7d'
-  });
+  return jwt.sign(
+    { id },
+    process.env.JWT_SECRET,
+    { expiresIn: process.env.JWT_EXPIRE || "7d" }
+  );
 };
 
-// Inscription d'un nouvel utilisateur
+// ==============================
+// REGISTER
+// ==============================
 export const register = async (req, res) => {
   try {
-    const { nom, prenom, email, password, role, telephone } = req.body;
+    const {
+      NOM,
+      PRENOM,
+      EMAIL,
+      MOT_DE_PASSE,
+      ROLE,
+      GRADE,
+      SPECIALITE
+    } = req.body;
 
-    // Vérifier si l'utilisateur existe déjà
-    const userExists = await User.findOne({ email });
-    if (userExists) {
+    // Validation minimale
+    if (!NOM || !PRENOM || !EMAIL || !MOT_DE_PASSE || !GRADE || !SPECIALITE) {
       return res.status(400).json({
         success: false,
-        message: 'Un utilisateur avec cet email existe déjà'
+        message: "Tous les champs obligatoires doivent être remplis"
       });
     }
 
-    // Créer l'utilisateur
+    // Vérifier si l'utilisateur existe
+    const userExists = await User.findOne({ EMAIL });
+    if (userExists) {
+      return res.status(400).json({
+        success: false,
+        message: "Un utilisateur avec cet email existe déjà"
+      });
+    }
+
+    // Création utilisateur
     const user = await User.create({
-      nom,
-      prenom,
-      email,
-      password,
-      role: role || 'chauffeur',
-      telephone
+      NOM,
+      PRENOM,
+      EMAIL,
+      MOT_DE_PASSE, // hashé automatiquement via pre('save')
+      ROLE: ROLE || "USER",
+      GRADE,
+      SPECIALITE
     });
 
-    // Générer le token
     const token = generateToken(user._id);
 
     res.status(201).json({
       success: true,
-      message: 'Utilisateur créé avec succès',
+      message: "Utilisateur créé avec succès",
       data: {
-        user: {
-          id: user._id,
-          nom: user.nom,
-          prenom: user.prenom,
-          email: user.email,
-          role: user.role,
-          telephone: user.telephone
-        },
+        user,
         token
       }
     });
+
   } catch (error) {
-    console.error('Erreur lors de l\'inscription:', error);
+    console.error("Erreur register:", error);
     res.status(500).json({
       success: false,
-      message: 'Erreur lors de l\'inscription',
+      message: "Erreur lors de l'inscription",
       error: error.message
     });
   }
 };
 
-// Connexion d'un utilisateur
+// ==============================
+// LOGIN
+// ==============================
 export const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { EMAIL, MOT_DE_PASSE } = req.body;
 
-    // Vérifier si l'utilisateur existe
-    const user = await User.findOne({ email }).select('+password');
+    if (!EMAIL || !MOT_DE_PASSE) {
+      return res.status(400).json({
+        success: false,
+        message: "EMAIL et MOT_DE_PASSE requis"
+      });
+    }
+
+    // Récupérer l'utilisateur avec mot de passe
+    const user = await User
+      .findOne({ EMAIL })
+      .select("+MOT_DE_PASSE");
+
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Email ou mot de passe incorrect'
+        message: "Email ou mot de passe incorrect"
       });
     }
 
-    // Vérifier le mot de passe
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // Vérification mot de passe
+    const isPasswordValid = await user.comparePassword(MOT_DE_PASSE);
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Email ou mot de passe incorrect'
+        message: "Email ou mot de passe incorrect"
       });
     }
 
-    // Mettre à jour la dernière connexion
-    user.derniereConnexion = Date.now();
+    // Mise à jour dernière connexion
+    user.DERNIERE_CONNEXION = Date.now();
     await user.save();
 
-    // Générer le token
     const token = generateToken(user._id);
 
     res.status(200).json({
       success: true,
-      message: 'Connexion réussie',
+      message: "Connexion réussie",
       data: {
-        user: {
-          id: user._id,
-          nom: user.nom,
-          prenom: user.prenom,
-          email: user.email,
-          role: user.role,
-          telephone: user.telephone,
-          avatar: user.avatar
-        },
+        user,
         token
       }
     });
+
   } catch (error) {
-    console.error('Erreur lors de la connexion:', error);
+    console.error("Erreur login:", error);
     res.status(500).json({
       success: false,
-      message: 'Erreur lors de la connexion',
+      message: "Erreur lors de la connexion",
       error: error.message
     });
   }
 };
 
-// Obtenir les informations de l'utilisateur connecté
+// ==============================
+// GET CURRENT USER
+// ==============================
 export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
 
     res.status(200).json({
       success: true,
-      data: {
-        user: {
-          id: user._id,
-          nom: user.nom,
-          prenom: user.prenom,
-          email: user.email,
-          role: user.role,
-          telephone: user.telephone,
-          avatar: user.avatar,
-          derniereConnexion: user.derniereConnexion
-        }
-      }
+      data: { user }
     });
+
   } catch (error) {
-    console.error('Erreur lors de la récupération du profil:', error);
+    console.error("Erreur getMe:", error);
     res.status(500).json({
       success: false,
-      message: 'Erreur lors de la récupération du profil',
+      message: "Erreur lors de la récupération du profil",
       error: error.message
     });
   }
 };
 
-// Mettre à jour le profil utilisateur
+// ==============================
+// UPDATE PROFILE
+// ==============================
 export const updateProfile = async (req, res) => {
   try {
-    const { nom, prenom, email, telephone, avatar } = req.body;
+    const {
+      NOM,
+      PRENOM,
+      EMAIL,
+      GRADE,
+      SPECIALITE,
+      FORMATIONS,
+      DIPLOMES
+    } = req.body;
 
-    // Vérifier si l'email existe déjà (sauf pour l'utilisateur actuel)
-    if (email) {
-      const emailExists = await User.findOne({ 
-        email, 
-        _id: { $ne: req.user.id } 
+    // Vérifier email unique
+    if (EMAIL) {
+      const emailExists = await User.findOne({
+        EMAIL,
+        _id: { $ne: req.user.id }
       });
-      
+
       if (emailExists) {
         return res.status(400).json({
           success: false,
-          message: 'Cet email est déjà utilisé'
+          message: "Cet email est déjà utilisé"
         });
       }
     }
 
     const user = await User.findByIdAndUpdate(
       req.user.id,
-      { nom, prenom, email, telephone, avatar },
+      {
+        NOM,
+        PRENOM,
+        EMAIL,
+        GRADE,
+        SPECIALITE,
+        FORMATIONS,
+        DIPLOMES
+      },
       { new: true, runValidators: true }
     );
 
     res.status(200).json({
       success: true,
-      message: 'Profil mis à jour avec succès',
-      data: {
-        user: {
-          id: user._id,
-          nom: user.nom,
-          prenom: user.prenom,
-          email: user.email,
-          role: user.role,
-          telephone: user.telephone,
-          avatar: user.avatar
-        }
-      }
+      message: "Profil mis à jour avec succès",
+      data: { user }
     });
+
   } catch (error) {
-    console.error('Erreur lors de la mise à jour du profil:', error);
+    console.error("Erreur updateProfile:", error);
     res.status(500).json({
       success: false,
-      message: 'Erreur lors de la mise à jour du profil',
+      message: "Erreur lors de la mise à jour du profil",
       error: error.message
     });
   }
 };
 
-// Changer le mot de passe
+// ==============================
+// CHANGE PASSWORD
+// ==============================
 export const changePassword = async (req, res) => {
   try {
-    const { currentPassword, newPassword } = req.body;
+    const { MOT_DE_PASSE_ACTUEL, NOUVEAU_MOT_DE_PASSE } = req.body;
 
-    // Récupérer l'utilisateur avec le mot de passe
-    const user = await User.findById(req.user.id).select('+password');
-
-    // Vérifier le mot de passe actuel
-    const isPasswordValid = await bcrypt.compare(currentPassword, user.password);
-    if (!isPasswordValid) {
-      return res.status(401).json({
+    if (!MOT_DE_PASSE_ACTUEL || !NOUVEAU_MOT_DE_PASSE) {
+      return res.status(400).json({
         success: false,
-        message: 'Mot de passe actuel incorrect'
+        message: "Champs requis manquants"
       });
     }
 
-    // Mettre à jour le mot de passe
-    user.password = newPassword;
+    const user = await User
+      .findById(req.user.id)
+      .select("+MOT_DE_PASSE");
+
+    const isMatch = await user.comparePassword(MOT_DE_PASSE_ACTUEL);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: "Mot de passe actuel incorrect"
+      });
+    }
+
+    user.MOT_DE_PASSE = NOUVEAU_MOT_DE_PASSE;
     await user.save();
 
     res.status(200).json({
       success: true,
-      message: 'Mot de passe modifié avec succès'
+      message: "Mot de passe modifié avec succès"
     });
+
   } catch (error) {
-    console.error('Erreur lors du changement de mot de passe:', error);
+    console.error("Erreur changePassword:", error);
     res.status(500).json({
       success: false,
-      message: 'Erreur lors du changement de mot de passe',
+      message: "Erreur lors du changement de mot de passe",
       error: error.message
     });
   }
 };
+
 
 // Obtenir tous les utilisateurs (Admin uniquement)
 export const getAllUsers = async (req, res) => {

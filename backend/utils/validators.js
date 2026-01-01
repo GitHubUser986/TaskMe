@@ -20,45 +20,63 @@ export const handleValidationErrors = (req, res, next) => {
 
 // Validation pour l'inscription
 export const validateRegister = [
-  body('nom')
+  body('NOM')
     .trim()
     .notEmpty().withMessage('Le nom est requis')
     .isLength({ min: 2, max: 50 }).withMessage('Le nom doit contenir entre 2 et 50 caractères'),
   
-  body('prenom')
+  body('PRENOM')
     .trim()
     .notEmpty().withMessage('Le prénom est requis')
     .isLength({ min: 2, max: 50 }).withMessage('Le prénom doit contenir entre 2 et 50 caractères'),
   
-  body('email')
+  body('EMAIL')
     .trim()
     .notEmpty().withMessage('L\'email est requis')
     .isEmail().withMessage('Format d\'email invalide')
     .normalizeEmail(),
   
-  body('password')
+  body('MOT_DE_PASSE')
     .notEmpty().withMessage('Le mot de passe est requis')
     .isLength({ min: 8 }).withMessage('Le mot de passe doit contenir au moins 8 caractères')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
     .withMessage('Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial'),
   
-  body('role')
+  body('ROLE')
     .optional()
     .isIn(['SUPERADMIN', 'ADMIN', 'USER'])
     .withMessage('Le rôle doit être SUPERADMIN, ADMIN ou USER'),
+
+  body('GRADE')
+  .notEmpty()
+  .withMessage('Le grade est requis')
+  .isIn(['A', 'B', 'C'])
+  .withMessage('Le grade doit être A, B ou C'),
+
+body('SPECIALITE')
+  .notEmpty()
+  .withMessage('La spécialité est requise')
+  .isIn([
+    "Auditeur pédagogique",
+    "Auditeur d'orientation",
+    "Auditeur de planification",
+    "Auditeur des services financiers"
+  ])
+  .withMessage('Spécialité invalide'),
+
   
   handleValidationErrors
 ];
 
 // Validation pour la connexion
 export const validateLogin = [
-  body('email')
+  body('EMAIL')
     .trim()
     .notEmpty().withMessage('L\'email est requis')
     .isEmail().withMessage('Format d\'email invalide')
     .normalizeEmail(),
   
-  body('password')
+  body('MOT_DE_PASSE')
     .notEmpty().withMessage('Le mot de passe est requis'),
   
   handleValidationErrors
@@ -66,17 +84,17 @@ export const validateLogin = [
 
 // Validation pour la mise à jour du profil
 export const validateUpdateProfile = [
-  body('nom')
+  body('NOM')
     .optional()
     .trim()
     .isLength({ min: 2, max: 50 }).withMessage('Le nom doit contenir entre 2 et 50 caractères'),
   
-  body('prenom')
+  body('PRENOM')
     .optional()
     .trim()
     .isLength({ min: 2, max: 50 }).withMessage('Le prénom doit contenir entre 2 et 50 caractères'),
   
-  body('email')
+  body('EMAIL')
     .optional()
     .trim()
     .isEmail().withMessage('Format d\'email invalide')
@@ -87,27 +105,34 @@ export const validateUpdateProfile = [
 
 // Validation pour le changement de mot de passe
 export const validateChangePassword = [
-  body('currentPassword')
-    .notEmpty().withMessage('Le mot de passe actuel est requis'),
-  
-  body('newPassword')
-    .notEmpty().withMessage('Le nouveau mot de passe est requis')
-    .isLength({ min: 8 }).withMessage('Le mot de passe doit contenir au moins 8 caractères')
+  body('MOT_DE_PASSE_ACTUEL')
+    .notEmpty()
+    .withMessage('Le mot de passe actuel est requis'),
+
+  body('NOUVEAU_MOT_DE_PASSE')
+    .notEmpty()
+    .withMessage('Le nouveau mot de passe est requis')
+    .isLength({ min: 8 })
+    .withMessage('Le mot de passe doit contenir au moins 8 caractères')
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-    .withMessage('Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial'),
-  
-  body('confirmPassword')
-    .notEmpty().withMessage('La confirmation du mot de passe est requise')
-    .custom((value, { req }) => value === req.body.newPassword)
+    .withMessage(
+      'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial'
+    ),
+
+  body('CONFIRMATION_MOT_DE_PASSE')
+    .notEmpty()
+    .withMessage('La confirmation du mot de passe est requise')
+    .custom((value, { req }) => value === req.body.NOUVEAU_MOT_DE_PASSE)
     .withMessage('Les mots de passe ne correspondent pas'),
-  
+
   handleValidationErrors
 ];
+  
 
 // Validation pour les véhicules
 export const validateVehicule = [
   
-  body('immatriculation')
+  body('IMMATRICULATION')
     .trim()
     .notEmpty().withMessage('L\'immatriculation est requise')
     .matches(/^[A-Z0-9\-]+$/)
