@@ -37,7 +37,7 @@ const handleSubmit = async (e: React.FormEvent) => {
     const response = await authAPI.login(payload);
 
     if (response.data.success) {
-      const { user, token } = response.data.data;
+      const { user, token } = response.data.data; 
 
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));

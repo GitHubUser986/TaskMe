@@ -67,13 +67,17 @@ const userSchema = new mongoose.Schema({
 
 // Hash du mot de passe avant sauvegarde
 userSchema.pre("save", async function () {
-  if (!this.isModified("MOT_DE_PASSE")) {
-    return;
-  }
+  if (!this.isModified("MOT_DE_PASSE")) return;
 
-  const salt = await bcrypt.genSalt(10);
-  this.MOT_DE_PASSE = await bcrypt.hash(this.MOT_DE_PASSE, salt);
+  try {
+    const salt = await bcrypt.genSalt(10);
+    this.MOT_DE_PASSE = await bcrypt.hash(this.MOT_DE_PASSE, salt);
+    // Pas de next() ici, async function le gère automatiquement
+  } catch (error) {
+    throw error; // Mongoose catchera l'erreur
+  }
 });
+
 
 // Méthode pour comparer les mots de passe
 userSchema.methods.comparePassword = async function(candidatePassword) {

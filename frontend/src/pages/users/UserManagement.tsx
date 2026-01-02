@@ -72,6 +72,7 @@ const UsersManagement: React.FC = () => {
       const response = await userAPI.getAll(params);
       
       if (response.data.success) {
+        console.log(response.data.data.users);
         setUsers(response.data.data.users);
         setError('');
       }
