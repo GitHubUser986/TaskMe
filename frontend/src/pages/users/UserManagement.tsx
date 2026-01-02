@@ -22,6 +22,7 @@ const UsersManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
   const [stats, setStats] = useState({
@@ -30,10 +31,27 @@ const UsersManagement: React.FC = () => {
     inactifs: 0
   });
 
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [formData, setFormData] = useState({
+    PRENOM: '',
+    NOM: '',
+    EMAIL: '',
+    ROLE: '',
+    GRADE: '',
+    SPECIALITE: '',
+  });
+
   // 📥 Charger les utilisateurs au montage du composant
   useEffect(() => {
     fetchUsers();
     fetchStats();
+  }, []);
+
+  useEffect(() => {
+    const closeMenu = () => setOpenMenuId(null);
+    window.addEventListener('click', closeMenu);
+    return () => window.removeEventListener('click', closeMenu);
   }, []);
 
   // 🔄 Recharger lors du changement de filtres
@@ -49,6 +67,7 @@ const UsersManagement: React.FC = () => {
       
       if (searchTerm) params.search = searchTerm;
       if (selectedSpecialty) params.specialite = selectedSpecialty;
+      console.log(selectedSpecialty);
 
       const response = await userAPI.getAll(params);
       
@@ -77,9 +96,39 @@ const UsersManagement: React.FC = () => {
   };
 
   // ✏️ Modifier un utilisateur
-  const handleEdit = (id: string) => {
-    navigate(`/users/edit/${id}`);
-  };
+ const handleEdit = (user: any) => {
+  setSelectedUser(user);
+  setFormData({
+    PRENOM: user.PRENOM,
+    NOM: user.NOM,
+    EMAIL: user.EMAIL,
+    ROLE: user.ROLE,
+    GRADE: user.GRADE,
+    SPECIALITE: user.SPECIALITE,
+  });
+  setIsEditModalOpen(true);
+};
+
+const handleEditSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  if (!selectedUser) return;
+
+  try {
+    const response = await userAPI.update(selectedUser._id, formData);
+    if (response.data.success) {
+      // Mettre à jour localement la liste des users
+      setUsers(users.map(u => u._id === selectedUser._id ? response.data.user : u));
+      fetchStats(); // rafraîchir les stats
+      setIsEditModalOpen(false);
+      alert('Utilisateur mis à jour avec succès');
+      navigate('/users');
+    }
+  } catch (err: any) {
+    console.error('Erreur lors de la mise à jour:', err);
+    alert(err.response?.data?.message || 'Erreur lors de la mise à jour');
+  }
+};
+
 
   // 🔄 Basculer le statut actif/inactif
   const handleToggleStatus = async (id: string) => {
@@ -135,13 +184,30 @@ const UsersManagement: React.FC = () => {
     }
   };
 
+    const getRoleLabel = (role: 'SUPERADMIN' | 'ADMIN' | 'USER') => {
+      switch (role) {
+        case 'SUPERADMIN':
+          return 'Administrateur';
+        case 'ADMIN':
+          return 'Coordinateur';
+        case 'USER':
+          return 'Auditeur';
+        default:
+          return role;
+      }
+    };
+
   // 🎨 Badge de rôle
-  const getRoleBadgeColor = (role: string) => {
+    const getRoleBadgeColor = (role: 'SUPERADMIN' | 'ADMIN' | 'USER') => {
     switch (role) {
-      case 'SUPERADMIN': return 'bg-purple-100 text-purple-800';
-      case 'ADMIN': return 'bg-blue-100 text-blue-800';
-      case 'USER': return 'bg-gray-100 text-gray-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'SUPERADMIN':
+        return 'bg-purple-100 text-purple-800';
+      case 'ADMIN':
+        return 'bg-blue-100 text-blue-800';
+      case 'USER':
+        return 'bg-green-100 text-green-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -162,9 +228,11 @@ const UsersManagement: React.FC = () => {
   };
 
   // 📝 Affichage du nom court de la spécialité
-  const getShortSpecialty = (specialite: string) => {
-    return specialite.replace('Auditeur ', '').replace('Auditeur d\'', '');
-  };
+const getShortSpecialty = (specialite: string) => {
+  // Supprime "Auditeur " ou "Auditeur d'/de/des " en début de chaîne
+  const clean = specialite.replace(/^Auditeur (d'|d’|de |des )?/, '');
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
+};
 
   if (loading && users.length === 0) {
     return (
@@ -242,9 +310,6 @@ const UsersManagement: React.FC = () => {
                     Grade
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
-                    Rôle
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
                     Statut
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
@@ -256,9 +321,15 @@ const UsersManagement: React.FC = () => {
                 {users.map((user) => (
                   <tr key={user._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div>
-                        <strong className="text-gray-900">{user.PRENOM} {user.NOM}</strong>
-                        <div className="text-xs text-gray-500">{user.ID}</div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-base font-bold text-gray-900">
+                          {user.NOM} {user.PRENOM}
+                        </span>
+                        <span
+                          className={`inline-flex w-fit items-center px-2 py-0.5 rounded-md text-[10px] font-medium ${getRoleBadgeColor(user.ROLE)}`}
+                        >
+                          {getRoleLabel(user.ROLE)}
+                        </span>
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
@@ -273,44 +344,139 @@ const UsersManagement: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getRoleBadgeColor(user.ROLE)}`}>
-                        {user.ROLE}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(user.ACTIF)}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleEdit(user._id)}
-                          className="px-3 py-1 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                        >
-                          Modifier
-                        </button>
-                        <button
-                          onClick={() => handleToggleStatus(user._id)}
-                          className={`px-3 py-1 text-white text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors ${
-                            user.ACTIF
-                              ? 'bg-orange-600 hover:bg-orange-700 focus:ring-orange-500'
-                              : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
-                          }`}
-                        >
-                          {user.ACTIF ? 'Désactiver' : 'Activer'}
-                        </button>
-                        <button
-                          onClick={() => handleDelete(user._id, user.NOM, user.PRENOM)}
-                          className="px-3 py-1 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
-                        >
-                          Supprimer
-                        </button>
-                      </div>
+                    <td className="px-6 py-4 whitespace-nowrap relative">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOpenMenuId(openMenuId === user._id ? null : user._id);
+                        }}
+                        className="p-2 rounded-full hover:bg-gray-200"
+                      >
+                        ⋮
+                      </button>
+                      {openMenuId === user._id && (
+                        <div className="absolute right-6 mt-2 w-44 bg-white border border-gray-200 rounded-md shadow-lg z-50">
+                          <ul className="flex flex-col">
+                            <li>
+                                <button
+                                  onClick={() => handleEdit(user)}
+                                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                                >
+                                Editer
+                              </button>
+                            </li>
+
+                            <li>
+                              <button
+                                onClick={() => {
+                                  handleToggleStatus(user._id);
+                                  setOpenMenuId(null);
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                              >
+                                {user.ACTIF ? 'Désactiver' : 'Activer'}
+                              </button>
+                            </li>
+
+                            <li>
+                              <button
+                                onClick={() => {
+                                  handleDelete(user._id, user.NOM, user.PRENOM);
+                                  setOpenMenuId(null);
+                                }}
+                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                              >
+                                Supprimer
+                              </button>
+                            </li>
+                          </ul>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          {isEditModalOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+              <div className="bg-white p-6 rounded shadow-lg w-96">
+                <h2 className="text-lg font-semibold mb-4">Éditer Utilisateur</h2>
+                <form onSubmit={handleEditSubmit} className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Prénom"
+                    value={formData.PRENOM}
+                    onChange={e => setFormData({ ...formData, PRENOM: e.target.value })}
+                    className="w-full border px-2 py-1 rounded"
+                    required
+                  />
+                  <input
+                    type="text"
+                    placeholder="Nom"
+                    value={formData.NOM}
+                    onChange={e => setFormData({ ...formData, NOM: e.target.value })}
+                    className="w-full border px-2 py-1 rounded"
+                    required
+                  />
+                  <input
+                    type="email"
+                    placeholder="Email"
+                    value={formData.EMAIL}
+                    onChange={e => setFormData({ ...formData, EMAIL: e.target.value })}
+                    className="w-full border px-2 py-1 rounded"
+                    required
+                  />
+                  <select
+                    value={formData.ROLE}
+                    onChange={e => setFormData({ ...formData, ROLE: e.target.value })}
+                    className="w-full border px-2 py-1 rounded"
+                    required
+                  >
+                    <option value="SUPERADMIN">Administrateur</option>
+                    <option value="ADMIN">Coordinateur</option>
+                    <option value="USER">Auditeur</option>
+                  </select>
+                  <select
+                    value={formData.GRADE}
+                    onChange={e => setFormData({ ...formData, GRADE: e.target.value })}
+                    className="w-full border px-2 py-1 rounded"
+                    required
+                  >
+                    <option value="A">A</option>
+                    <option value="B">B</option>
+                    <option value="C">C</option>
+                  </select>
+                  <select
+                    value={formData.SPECIALITE}
+                    onChange={e => setFormData({ ...formData, SPECIALITE: e.target.value })}
+                    className="w-full border px-2 py-1 rounded"
+                    required
+                  >
+                    <option value="Auditeur pédagogique">Auditeur pédagogique</option>
+                    <option value="Auditeur d'orientation">Auditeur d'orientation</option>
+                    <option value="Auditeur de planification">Auditeur de planification</option>
+                    <option value="Auditeur des services financiers">Auditeur des services financiers</option>
+                  </select>
+                  <div className="flex justify-end gap-2 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => setIsEditModalOpen(false)}
+                      className="px-4 py-1 bg-gray-300 rounded"
+                    >
+                      Annuler
+                    </button>
+                    <button type="submit" className="px-4 py-1 bg-blue-500 text-white rounded">
+                      Sauvegarder
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+
 
           {users.length === 0 && !loading && (
             <div className="text-center py-12">

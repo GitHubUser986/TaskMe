@@ -4,7 +4,7 @@ const tacheSchema = new mongoose.Schema({
   ID: { type: String, required: true, unique: true },
   NOM: { type: String, required: true },
   DESCRIPTION: { type: String, required: true },
-  TYPE: { type: String, enum: ["Formateur", "Membre de jury", "Bénéficiaire de formation", "Observateur", "Concepteur d’évaluation"], required: true },
+  TYPE: { type: String, enum: ["Formateur", "Membre de jury", "Bénéficiaire de formation", "Observateur", "Concepteur d'évaluation"], required: true },
   PERIODE_EXECUTION: {
     DATE_DEBUT: { type: Date, required: true },
     DATE_FIN: { type: Date, required: true }

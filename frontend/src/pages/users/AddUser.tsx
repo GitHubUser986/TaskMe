@@ -1,26 +1,44 @@
 import React, { useState } from 'react';
-import { User, Mail, Phone, Award, Briefcase, Save, X, AlertCircle, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { User, Mail, Phone, Award, Briefcase, Save, X, AlertCircle, CheckCircle, Lock } from 'lucide-react';
+import { userAPI } from '../../services/api';
 
 interface UserFormData {
-  fullName: string;
-  specialty: string;
-  grade: string;
-  role: string;
-  email: string;
-  phone: string;
+  NOM: string;
+  PRENOM: string;
+  EMAIL: string;
+  MOT_DE_PASSE: string;
+  confirmPassword: string;
+  SPECIALITE: string;
+  GRADE: string;
+  ROLE: string;
 }
 
 const AddUser: React.FC = () => {
+  const navigate = useNavigate();
+  
   const [formData, setFormData] = useState<UserFormData>({
-    fullName: '',
-    specialty: '',
-    grade: '',
-    role: 'User',
-    email: '',
-    phone: ''
+    NOM: '',
+    PRENOM: '',
+    EMAIL: '',
+    MOT_DE_PASSE: '',
+    confirmPassword: '',
+    SPECIALITE: '',
+    GRADE: 'C',
+    ROLE: 'USER'
   });
 
-  const [errors, setErrors] = useState<Partial<UserFormData>>({});
+  const [errors, setErrors] = useState<Partial<Record<keyof UserFormData, string>>>({});
+  const [loading, setLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+
+  const specialites = [
+    'Auditeur pédagogique',
+    'Auditeur d\'orientation',
+    'Auditeur de planification',
+    'Auditeur des services financiers'
+  ];
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -28,251 +46,447 @@ const AddUser: React.FC = () => {
       ...prev,
       [name]: value
     }));
+    
+    // Effacer l'erreur du champ modifié
     if (errors[name as keyof UserFormData]) {
       setErrors(prev => ({
         ...prev,
         [name]: ''
       }));
     }
+    
+    // Effacer les messages globaux
+    setErrorMessage('');
+    setSuccessMessage('');
   };
 
   const validateForm = (): boolean => {
-    const newErrors: Partial<UserFormData> = {};
+    const newErrors: Partial<Record<keyof UserFormData, string>> = {};
 
-    if (!formData.fullName.trim()) {
-      newErrors.fullName = 'Le nom complet est requis';
+    // Validation Nom
+    if (!formData.NOM.trim()) {
+      newErrors.NOM = 'Le nom est requis';
+    } else if (formData.NOM.length < 2) {
+      newErrors.NOM = 'Le nom doit contenir au moins 2 caractères';
     }
 
-    if (!formData.specialty) {
-      newErrors.specialty = 'La spécialité est requise';
+    // Validation Prénom
+    if (!formData.PRENOM.trim()) {
+      newErrors.PRENOM = 'Le prénom est requis';
+    } else if (formData.PRENOM.length < 2) {
+      newErrors.PRENOM = 'Le prénom doit contenir au moins 2 caractères';
     }
 
-    if (!formData.grade) {
-      newErrors.grade = 'Le grade est requis';
+    // Validation Email
+    if (!formData.EMAIL.trim()) {
+      newErrors.EMAIL = "L'email est requis";
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.EMAIL)) {
+      newErrors.EMAIL = 'Format d\'email invalide';
     }
 
-    if (!formData.email.trim()) {
-      newErrors.email = "L'email est requis";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email invalide';
+    // Validation Mot de passe
+    if (!formData.MOT_DE_PASSE) {
+      newErrors.MOT_DE_PASSE = 'Le mot de passe est requis';
+    } else if (formData.MOT_DE_PASSE.length < 8) {
+      newErrors.MOT_DE_PASSE = 'Le mot de passe doit contenir au moins 8 caractères';
+    } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/.test(formData.MOT_DE_PASSE)) {
+      newErrors.MOT_DE_PASSE = 'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial';
     }
 
-    if (formData.phone && !/^[0-9+\s-()]{10,}$/.test(formData.phone)) {
-      newErrors.phone = 'Numéro de téléphone invalide';
+    // Validation Confirmation mot de passe
+    if (!formData.confirmPassword) {
+      newErrors.confirmPassword = 'La confirmation du mot de passe est requise';
+    } else if (formData.MOT_DE_PASSE !== formData.confirmPassword) {
+      newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
+    }
+
+    // Validation Spécialité
+    if (!formData.SPECIALITE) {
+      newErrors.SPECIALITE = 'La spécialité est requise';
+    }
+
+    // Validation Grade
+    if (!formData.GRADE) {
+      newErrors.GRADE = 'Le grade est requis';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
-      console.log('Formulaire soumis:', formData);
-      alert(`Utilisateur ajouté avec succès!\n\nNom: ${formData.fullName}\nSpécialité: ${formData.specialty}\nGrade: ${formData.grade}`);
+    
+    if (!validateForm()) {
+      setErrorMessage('Veuillez corriger les erreurs du formulaire');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    try {
+      // Préparer les données pour l'API
+      const userData = {
+        NOM: formData.NOM.trim(),
+        PRENOM: formData.PRENOM.trim(),
+        EMAIL: formData.EMAIL.trim().toLowerCase(),
+        MOT_DE_PASSE: formData.MOT_DE_PASSE,
+        ROLE: formData.ROLE,
+        GRADE: formData.GRADE,
+        SPECIALITE: formData.SPECIALITE
+      };
+
+      const response = await userAPI.create(userData);
+
+      if (response.data.success) {
+        setSuccessMessage('Utilisateur créé avec succès !');
+        
+        // Réinitialiser le formulaire
+        setFormData({
+          NOM: '',
+          PRENOM: '',
+          EMAIL: '',
+          MOT_DE_PASSE: '',
+          confirmPassword: '',
+          SPECIALITE: '',
+          GRADE: 'C',
+          ROLE: 'USER'
+        });
+        setErrors({});
+
+        // Rediriger vers la liste des utilisateurs après 2 secondes
+        setTimeout(() => {
+          navigate('/users');
+        }, 2000);
+      }
+    } catch (err: any) {
+      console.error('Erreur lors de la création de l\'utilisateur:', err);
       
-      setFormData({
-        fullName: '',
-        specialty: '',
-        grade: '',
-        role: 'User',
-        email: '',
-        phone: ''
-      });
+      // Gérer les différents types d'erreurs
+      if (err.response?.data?.errors && Array.isArray(err.response.data.errors)) {
+        // Erreurs de validation du backend
+        const backendErrors: Partial<Record<keyof UserFormData, string>> = {};
+        err.response.data.errors.forEach((error: any) => {
+          backendErrors[error.champ as keyof UserFormData] = error.message;
+        });
+        setErrors(backendErrors);
+        setErrorMessage('Veuillez corriger les erreurs indiquées');
+      } else {
+        // Erreur générale
+        setErrorMessage(
+          err.response?.data?.message || 
+          'Erreur lors de la création de l\'utilisateur. Veuillez réessayer.'
+        );
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCancel = () => {
     if (window.confirm('Êtes-vous sûr de vouloir annuler? Les données non enregistrées seront perdues.')) {
-      setFormData({
-        fullName: '',
-        specialty: '',
-        grade: '',
-        role: 'User',
-        email: '',
-        phone: ''
-      });
-      setErrors({});
+      navigate('/users');
     }
   };
 
   return (
-    <div className="page">
-      <div className="container">
-        <div className="page-header">
-          <h1 className="page-title">Ajouter un nouvel utilisateur</h1>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="max-w-4xl mx-auto px-4">
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-800">Ajouter un nouvel utilisateur</h1>
+          <p className="text-gray-600 mt-2">Créez un nouveau compte utilisateur dans le système</p>
         </div>
 
-        <div className="card">
-          <form onSubmit={handleSubmit}>
-            {/* Nom complet */}
-            <div className="form-group">
-              <label htmlFor="fullName">
-                <User className="w-4 h-4 inline mr-2" />
-                Nom complet <span className="text-red-400">*</span>
-              </label>
-              <input
-                type="text"
-                id="fullName"
-                name="fullName"
-                value={formData.fullName}
-                onChange={handleChange}
-                className={`form-control ${errors.fullName ? 'border-red-500' : ''}`}
-                placeholder="Ex: Ahmed El Fassi"
-              />
-              {errors.fullName && (
-                <p className="mt-2 text-sm text-red-400 flex items-center gap-1">
-                  <AlertCircle className="w-4 h-4" />
-                  {errors.fullName}
-                </p>
-              )}
+        {/* Message de succès */}
+        {successMessage && (
+          <div className="mb-6 p-4 bg-green-100 border border-green-400 text-green-700 rounded-lg flex items-start gap-3">
+            <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">{successMessage}</p>
+              <p className="text-sm mt-1">Redirection en cours...</p>
             </div>
+          </div>
+        )}
 
-            {/* Email et Téléphone */}
-            <div className="grid grid-2">
-              <div className="form-group">
-                <label htmlFor="email">
-                  <Mail className="w-4 h-4 inline mr-2" />
-                  Email <span className="text-red-400">*</span>
+        {/* Message d'erreur global */}
+        {errorMessage && (
+          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <p>{errorMessage}</p>
+          </div>
+        )}
+
+        <div className="bg-white rounded-lg shadow-md p-8">
+          <form onSubmit={handleSubmit}>
+            {/* Nom et Prénom */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label htmlFor="NOM" className="block text-sm font-medium text-gray-700 mb-2">
+                  <User className="w-4 h-4 inline mr-2" />
+                  Nom <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="email"
-                  id="email"
-                  name="email"
-                  value={formData.email}
+                  type="text"
+                  id="NOM"
+                  name="NOM"
+                  value={formData.NOM}
                   onChange={handleChange}
-                  className={`form-control ${errors.email ? 'border-red-500' : ''}`}
-                  placeholder="exemple@education.ma"
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.NOM ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Ex: El Fassi"
+                  disabled={loading}
                 />
-                {errors.email && (
-                  <p className="mt-2 text-sm text-red-400 flex items-center gap-1">
+                {errors.NOM && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
-                    {errors.email}
+                    {errors.NOM}
                   </p>
                 )}
               </div>
 
-              <div className="form-group">
-                <label htmlFor="phone">
-                  <Phone className="w-4 h-4 inline mr-2" />
-                  Téléphone
+              <div>
+                <label htmlFor="PRENOM" className="block text-sm font-medium text-gray-700 mb-2">
+                  <User className="w-4 h-4 inline mr-2" />
+                  Prénom <span className="text-red-500">*</span>
                 </label>
                 <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
+                  type="text"
+                  id="PRENOM"
+                  name="PRENOM"
+                  value={formData.PRENOM}
                   onChange={handleChange}
-                  className={`form-control ${errors.phone ? 'border-red-500' : ''}`}
-                  placeholder="+212 6XX XXX XXX"
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.PRENOM ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Ex: Ahmed"
+                  disabled={loading}
                 />
-                {errors.phone && (
-                  <p className="mt-2 text-sm text-red-400 flex items-center gap-1">
+                {errors.PRENOM && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
-                    {errors.phone}
+                    {errors.PRENOM}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Email*/}
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mb-6">
+              <div>
+                <label htmlFor="EMAIL" className="block text-sm font-medium text-gray-700 mb-2">
+                  <Mail className="w-4 h-4 inline mr-2" />
+                  Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  id="EMAIL"
+                  name="EMAIL"
+                  value={formData.EMAIL}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.EMAIL ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="exemple@education.ma"
+                  disabled={loading}
+                />
+                {errors.EMAIL && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.EMAIL}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Mot de passe et Confirmation */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label htmlFor="MOT_DE_PASSE" className="block text-sm font-medium text-gray-700 mb-2">
+                  <Lock className="w-4 h-4 inline mr-2" />
+                  Mot de passe <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  id="MOT_DE_PASSE"
+                  name="MOT_DE_PASSE"
+                  value={formData.MOT_DE_PASSE}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.MOT_DE_PASSE ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Min. 8 caractères"
+                  disabled={loading}
+                />
+                {errors.MOT_DE_PASSE && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.MOT_DE_PASSE}
+                  </p>
+                )}
+                <p className="mt-1 text-xs text-gray-500">
+                  Majuscule, minuscule, chiffre et caractère spécial requis
+                </p>
+              </div>
+
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
+                  <Lock className="w-4 h-4 inline mr-2" />
+                  Confirmer le mot de passe <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={formData.confirmPassword}
+                  onChange={handleChange}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="Confirmer le mot de passe"
+                  disabled={loading}
+                />
+                {errors.confirmPassword && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.confirmPassword}
                   </p>
                 )}
               </div>
             </div>
 
             {/* Spécialité et Grade */}
-            <div className="grid grid-2">
-              <div className="form-group">
-                <label htmlFor="specialty">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label htmlFor="SPECIALITE" className="block text-sm font-medium text-gray-700 mb-2">
                   <Briefcase className="w-4 h-4 inline mr-2" />
-                  Spécialité <span className="text-red-400">*</span>
+                  Spécialité <span className="text-red-500">*</span>
                 </label>
                 <select
-                  id="specialty"
-                  name="specialty"
-                  value={formData.specialty}
+                  id="SPECIALITE"
+                  name="SPECIALITE"
+                  value={formData.SPECIALITE}
                   onChange={handleChange}
-                  className={`form-control ${errors.specialty ? 'border-red-500' : ''}`}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.SPECIALITE ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  disabled={loading}
                 >
                   <option value="">Sélectionnez une spécialité</option>
-                  <option value="Pédagogique">Pédagogique</option>
-                  <option value="Orientation">Orientation</option>
-                  <option value="Planification">Planification</option>
-                  <option value="Services financiers">Services financiers</option>
+                  {specialites.map((spec) => (
+                    <option key={spec} value={spec}>{spec}</option>
+                  ))}
                 </select>
-                {errors.specialty && (
-                  <p className="mt-2 text-sm text-red-400 flex items-center gap-1">
+                {errors.SPECIALITE && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
-                    {errors.specialty}
+                    {errors.SPECIALITE}
                   </p>
                 )}
               </div>
 
-              <div className="form-group">
-                <label htmlFor="grade">
+              <div>
+                <label htmlFor="GRADE" className="block text-sm font-medium text-gray-700 mb-2">
                   <Award className="w-4 h-4 inline mr-2" />
-                  Grade <span className="text-red-400">*</span>
+                  Grade <span className="text-red-500">*</span>
                 </label>
                 <select
-                  id="grade"
-                  name="grade"
-                  value={formData.grade}
+                  id="GRADE"
+                  name="GRADE"
+                  value={formData.GRADE}
                   onChange={handleChange}
-                  className={`form-control ${errors.grade ? 'border-red-500' : ''}`}
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                    errors.GRADE ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  disabled={loading}
                 >
-                  <option value="">Sélectionnez un grade</option>
-                  <option value="Grade A">Grade A</option>
-                  <option value="Grade B">Grade B</option>
-                  <option value="Grade C">Grade C</option>
+                  <option value="A">Grade A</option>
+                  <option value="B">Grade B</option>
+                  <option value="C">Grade C</option>
                 </select>
-                {errors.grade && (
-                  <p className="mt-2 text-sm text-red-400 flex items-center gap-1">
+                {errors.GRADE && (
+                  <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
                     <AlertCircle className="w-4 h-4" />
-                    {errors.grade}
+                    {errors.GRADE}
                   </p>
                 )}
               </div>
             </div>
 
             {/* Rôle */}
-            <div className="form-group">
-              <label htmlFor="role">
-                Rôle <span className="text-red-400">*</span>
+            <div className="mb-8">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Rôle <span className="text-red-500">*</span>
               </label>
-              <div className="radio-group">
-                <div className="radio-item">
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
-                    id="role-user"
-                    name="role"
-                    value="User"
-                    checked={formData.role === 'User'}
+                    name="ROLE"
+                    value="USER"
+                    checked={formData.ROLE === 'USER'}
                     onChange={handleChange}
+                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                    disabled={loading}
                   />
-                  <label htmlFor="role-user">Utilisateur</label>
-                </div>
-                <div className="radio-item">
+                  <span className="text-gray-700">Utilisateur</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="radio"
-                    id="role-admin"
-                    name="role"
-                    value="Admin"
-                    checked={formData.role === 'Admin'}
+                    name="ROLE"
+                    value="ADMIN"
+                    checked={formData.ROLE === 'ADMIN'}
                     onChange={handleChange}
+                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                    disabled={loading}
                   />
-                  <label htmlFor="role-admin">Administrateur</label>
-                </div>
+                  <span className="text-gray-700">Administrateur</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="ROLE"
+                    value="SUPERADMIN"
+                    checked={formData.ROLE === 'SUPERADMIN'}
+                    onChange={handleChange}
+                    className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                    disabled={loading}
+                  />
+                  <span className="text-gray-700">Super Administrateur</span>
+                </label>
               </div>
-              <p className="mt-2 text-sm text-gray-400">
+              <p className="mt-2 text-sm text-gray-500">
                 Les administrateurs ont accès à toutes les fonctionnalités du système
               </p>
             </div>
 
             {/* Boutons */}
             <div className="flex gap-4">
-              <button type="submit" className="btn btn-success">
-                <Save className="w-5 h-5 inline mr-2" />
-                Ajouter l'utilisateur
+              <button
+                type="submit"
+                disabled={loading}
+                className="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Création en cours...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5" />
+                    Ajouter l'utilisateur
+                  </>
+                )}
               </button>
               <button
                 type="button"
                 onClick={handleCancel}
-                className="px-8 py-2 mt-8 bg-slate-700/50 hover:bg-slate-700 text-white rounded-xl transition-all duration-300 flex items-center gap-2 font-semibold"
+                disabled={loading}
+                className="px-6 py-3 bg-gray-600 text-white rounded-lg font-semibold hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <X className="w-5 h-5" />
                 Annuler
@@ -282,22 +496,26 @@ const AddUser: React.FC = () => {
         </div>
 
         {/* Info Box */}
-        <div className="mt-6 bg-blue-500/10 border-2 border-blue-500/30 rounded-xl p-6">
-          <h3 className="text-lg font-bold text-blue-400 mb-3 flex items-center gap-2">
+        <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-6">
+          <h3 className="text-lg font-bold text-blue-800 mb-3 flex items-center gap-2">
             <CheckCircle className="w-5 h-5" />
-            Informations
+            Informations importantes
           </h3>
-          <ul className="text-sm text-gray-700 space-y-2">
+          <ul className="text-sm text-blue-900 space-y-2">
             <li className="flex items-start gap-2">
-              <span className="text-blue-400 mb-1">•</span>
+              <span className="text-blue-600 mt-1">•</span>
               <span>Les champs marqués d'un astérisque (*) sont obligatoires</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-blue-400 mb-1">•</span>
-              <span>L'utilisateur recevra un email de confirmation à l'adresse indiquée</span>
+              <span className="text-blue-600 mt-1">•</span>
+              <span>Le mot de passe doit contenir au moins 8 caractères avec majuscule, minuscule, chiffre et caractère spécial</span>
             </li>
             <li className="flex items-start gap-2">
-              <span className="text-blue-400 mb-1">•</span>
+              <span className="text-blue-600 mt-1">•</span>
+              <span>L'utilisateur pourra se connecter immédiatement après la création du compte</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-blue-600 mt-1">•</span>
               <span>Le compte sera activé par défaut lors de la création</span>
             </li>
           </ul>

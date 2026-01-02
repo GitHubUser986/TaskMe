@@ -52,16 +52,17 @@ export const authorize = (...roles) => {
       });
     }
 
-    if (!roles.includes(req.user.role)) {
+    if (!roles.includes(req.user.ROLE)) {  // ← ici
       return res.status(403).json({ 
         success: false, 
-        message: `Le rôle '${req.user.role}' n'est pas autorisé à accéder à cette ressource` 
+        message: `Le rôle '${req.user.ROLE}' n'est pas autorisé à accéder à cette ressource` 
       });
     }
 
     next();
   };
 };
+
 
 // Middleware optionnel : Charger l'utilisateur si token présent
 export const loadUser = async (req, res, next) => {

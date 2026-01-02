@@ -292,15 +292,62 @@ export const getUserStats = async (req, res) => {
     const inactifs = await User.countDocuments({ ACTIF: false });
 
     const parRole = await User.aggregate([
-      { $group: { _id: '$ROLE', count: { $sum: 1 } } }
+      {
+        $group: {
+          _id: '$ROLE',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          role: '$_id',
+          label: {
+            $switch: {
+              branches: [
+                { case: { $eq: ['$_id', 'SUPERADMIN'] }, then: 'Administrateur' },
+                { case: { $eq: ['$_id', 'ADMIN'] }, then: 'Coordinateur' },
+                { case: { $eq: ['$_id', 'USER'] }, then: 'Auditeur' }
+              ],
+              default: 'Inconnu'
+            }
+          },
+          count: 1
+        }
+      }
     ]);
 
     const parGrade = await User.aggregate([
-      { $group: { _id: '$GRADE', count: { $sum: 1 } } }
+      {
+        $group: {
+          _id: '$GRADE',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          grade: '$_id',
+          count: 1
+        }
+      }
     ]);
 
     const parSpecialite = await User.aggregate([
-      { $group: { _id: '$SPECIALITE', count: { $sum: 1 } } }
+      {
+        $group: {
+          _id: '$SPECIALITE',
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          specialite: '$_id',
+          count: 1
+        }
+      },
+      { $sort: { count: -1 } }
     ]);
 
     res.status(200).json({
@@ -315,11 +362,10 @@ export const getUserStats = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Erreur lors de la récupération des statistiques:', error);
+    console.error('Erreur stats utilisateurs:', error);
     res.status(500).json({
       success: false,
-      message: 'Erreur lors de la récupération des statistiques',
-      error: error.message
+      message: 'Erreur lors de la récupération des statistiques'
     });
   }
 };
