@@ -1,56 +1,71 @@
 import React, { useState } from 'react';
-import { Car, Calendar, Gauge, Fuel, Palette, FileText, Save, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Car, Save, X, Loader2 } from 'lucide-react';
+import { vehiculeAPI } from '../../services/api';
 
 interface VehicleFormData {
-  registration: string;
-  model: string;
-  brand: string;
-  capacity: number;
-  year: number;
-  color: string;
-  fuelType: string;
-  status: 'disponible' | 'maintenance' | 'mission';
-  mileage: number;
-  notes: string;
+  ID: string;
+  IMMATRICULATION: string;
+  MARQUE: string;
+  MODELE: string;
+  DISPONIBLE: boolean;
+  CAPACITE: number;
 }
 
 const AddVehicleForm: React.FC = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+    const generateVehicleID = (): string => {
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 10000);
+    return `V-${timestamp}-${random}`;
+  };
+  
   const [formData, setFormData] = useState<VehicleFormData>({
-    registration: '',
-    model: '',
-    brand: '',
-    capacity: 5,
-    year: new Date().getFullYear(),
-    color: '',
-    fuelType: 'essence',
-    status: 'disponible',
-    mileage: 0,
-    notes: ''
+    ID: generateVehicleID(),
+    IMMATRICULATION: '',
+    MARQUE: '',
+    MODELE: '',
+    DISPONIBLE: true,
+    CAPACITE: 5
   });
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type } = e.target;
+    
+    if (type === 'checkbox') {
+      const checked = (e.target as HTMLInputElement).checked;
+      setFormData(prev => ({ ...prev, [name]: checked }));
+    } else if (name === 'CAPACITE') {
+      setFormData(prev => ({ ...prev, [name]: parseInt(value) || 0 }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Véhicule ajouté:', formData);
-    alert('Véhicule ajouté avec succès!');
-    setFormData({
-      registration: '',
-      model: '',
-      brand: '',
-      capacity: 5,
-      year: new Date().getFullYear(),
-      color: '',
-      fuelType: 'essence',
-      status: 'disponible',
-      mileage: 0,
-      notes: ''
-    });
+    setLoading(true);
+    setError(null);
+
+    try {
+      // Envoyer les données au backend
+      await vehiculeAPI.create(formData);
+      
+      alert('Véhicule ajouté avec succès!');
+      
+      // Rediriger vers la liste des véhicules
+      navigate('/vehicles');
+      
+    } catch (err: any) {
+      console.error('Erreur lors de l\'ajout du véhicule:', err);
+      setError(err.response?.data?.message || 'Erreur lors de l\'ajout du véhicule');
+      setLoading(false);
+    }
   };
 
   return (
@@ -60,220 +75,136 @@ const AddVehicleForm: React.FC = () => {
           <h1 className="page-title">Ajouter un véhicule</h1>
         </div>
 
-        <div className="card">
+        {error && (
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <p className="text-red-800">{error}</p>
+          </div>
+        )}
+
+        <div className="bg-white rounded-lg shadow-md p-8">
           <form onSubmit={handleSubmit}>
-            {/* Immatriculation et Marque */}
-            <div className="grid grid-2">
+            {/* Immatriculation */}
+            <div className="grid grid-cols-1 md:grid-cols-1 gap-6 mb-6">
               <div className="form-group">
-                <label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Car className="w-4 h-4 inline mr-2" />
-                  Immatriculation *
+                  Immatriculation <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="text"
-                  name="registration"
-                  className="form-control"
+                  name="IMMATRICULATION"
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Ex: 1234-AB-56"
-                  value={formData.registration}
+                  value={formData.IMMATRICULATION}
                   onChange={handleInputChange}
                   required
+                  disabled={loading}
                 />
               </div>
+            </div>
 
+            {/* Marque et Modèle */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="form-group">
-                <label>Marque *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Marque <span className="text-red-500">*</span></label>
                 <select
-                  name="brand"
-                  className="form-control"
-                  value={formData.brand}
+                  name="MARQUE"
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={formData.MARQUE}
                   onChange={handleInputChange}
                   required
+                  disabled={loading}
                 >
                   <option value="">Sélectionner une marque</option>
+                  <option value="Mercedes">Mercedes</option>
                   <option value="Toyota">Toyota</option>
                   <option value="Renault">Renault</option>
                   <option value="Peugeot">Peugeot</option>
                   <option value="Ford">Ford</option>
                   <option value="Nissan">Nissan</option>
-                  <option value="Mercedes">Mercedes</option>
                   <option value="Volkswagen">Volkswagen</option>
                   <option value="Dacia">Dacia</option>
+                  <option value="Citroën">Citroën</option>
+                  <option value="Fiat">Fiat</option>
                 </select>
               </div>
-            </div>
 
-            {/* Modèle et Année */}
-            <div className="grid grid-2">
               <div className="form-group">
-                <label>Modèle *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Modèle <span className="text-red-500">*</span></label>
                 <input
                   type="text"
-                  name="model"
-                  className="form-control"
+                  name="MODELE"
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="Ex: Corolla, Clio, Transit..."
-                  value={formData.model}
+                  value={formData.MODELE}
                   onChange={handleInputChange}
                   required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>
-                  <Calendar className="w-4 h-4 inline mr-2" />
-                  Année *
-                </label>
-                <input
-                  type="number"
-                  name="year"
-                  className="form-control"
-                  placeholder="2024"
-                  min="1990"
-                  max={new Date().getFullYear() + 1}
-                  value={formData.year}
-                  onChange={handleInputChange}
-                  required
+                  disabled={loading}
                 />
               </div>
             </div>
 
-            {/* Capacité et Couleur */}
-            <div className="grid grid-2">
+            {/* Capacité et Disponibilité */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div className="form-group">
-                <label>Capacité (places) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Capacité (places) <span className="text-red-500">*</span></label>
                 <input
                   type="number"
-                  name="capacity"
-                  className="form-control"
+                  name="CAPACITE"
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="5"
                   min="2"
                   max="50"
-                  value={formData.capacity}
+                  value={formData.CAPACITE}
                   onChange={handleInputChange}
                   required
+                  disabled={loading}
                 />
               </div>
 
               <div className="form-group">
-                <label>
-                  <Palette className="w-4 h-4 inline mr-2" />
-                  Couleur
-                </label>
-                <input
-                  type="text"
-                  name="color"
-                  className="form-control"
-                  placeholder="Blanc, Noir, Gris..."
-                  value={formData.color}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-
-            {/* Type de carburant et Kilométrage */}
-            <div className="grid grid-2">
-              <div className="form-group">
-                <label>
-                  <Fuel className="w-4 h-4 inline mr-2" />
-                  Type de carburant *
-                </label>
-                <select
-                  name="fuelType"
-                  className="form-control"
-                  value={formData.fuelType}
-                  onChange={handleInputChange}
-                  required
-                >
-                  <option value="essence">Essence</option>
-                  <option value="diesel">Diesel</option>
-                  <option value="hybride">Hybride</option>
-                  <option value="electrique">Électrique</option>
-                  <option value="gpl">GPL</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>
-                  <Gauge className="w-4 h-4 inline mr-2" />
-                  Kilométrage
-                </label>
-                <input
-                  type="number"
-                  name="mileage"
-                  className="form-control"
-                  placeholder="0"
-                  min="0"
-                  value={formData.mileage}
-                  onChange={handleInputChange}
-                />
-              </div>
-            </div>
-
-            {/* Statut */}
-            <div className="form-group">
-              <label>Statut initial *</label>
-              <div className="radio-group">
-                <div className="radio-item">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Disponibilité</label>
+                <div className="flex items-center gap-3 mt-2">
                   <input
-                    type="radio"
-                    id="status-disponible"
-                    name="status"
-                    value="disponible"
-                    checked={formData.status === 'disponible'}
+                    type="checkbox"
+                    name="DISPONIBLE"
+                    id="disponible"
+                    checked={formData.DISPONIBLE}
                     onChange={handleInputChange}
+                    disabled={loading}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
-                  <label htmlFor="status-disponible">Disponible</label>
-                </div>
-                <div className="radio-item">
-                  <input
-                    type="radio"
-                    id="status-mission"
-                    name="status"
-                    value="mission"
-                    checked={formData.status === 'mission'}
-                    onChange={handleInputChange}
-                  />
-                  <label htmlFor="status-mission">En mission</label>
-                </div>
-                <div className="radio-item">
-                  <input
-                    type="radio"
-                    id="status-maintenance"
-                    name="status"
-                    value="maintenance"
-                    checked={formData.status === 'maintenance'}
-                    onChange={handleInputChange}
-                  />
-                  <label htmlFor="status-maintenance">En maintenance</label>
+                  <label htmlFor="disponible" className="block text-sm font-medium text-gray-700 mb-2">
+                    Véhicule disponible
+                  </label>
                 </div>
               </div>
-            </div>
-
-            {/* Notes */}
-            <div className="form-group">
-              <label>
-                <FileText className="w-4 h-4 inline mr-2" />
-                Notes / Observations
-              </label>
-              <textarea
-                name="notes"
-                className="form-control"
-                placeholder="Informations supplémentaires sur le véhicule..."
-                rows={4}
-                value={formData.notes}
-                onChange={handleInputChange}
-              />
             </div>
 
             {/* Boutons */}
             <div className="flex gap-4">
-              <button type="submit" className="btn btn-success">
-                <Save className="w-5 h-5 inline mr-2" />
-                Ajouter le véhicule
+              <button 
+                type="submit" 
+                className="px-6 py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={loading}
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 inline mr-2 animate-spin" />
+                    Ajout en cours...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-5 h-5 inline mr-2" />
+                    Ajouter le véhicule
+                  </>
+                )}
               </button>
               <button
                 type="button"
-                onClick={() => window.history.back()}
-                className="px-8 py-2 mt-8 bg-slate-700/50 hover:bg-slate-700 text-white rounded-xl transition-all duration-300 flex items-center gap-2 font-semibold"
+                onClick={() => navigate('/vehicles')}
+                className="px-8 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-xl transition-all duration-300 flex items-center gap-2 font-semibold"
+                disabled={loading}
               >
                 <X className="w-5 h-5" />
                 Annuler

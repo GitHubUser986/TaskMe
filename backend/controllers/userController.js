@@ -61,7 +61,7 @@ export const getAllUsers = async (req, res) => {
 // Obtenir un utilisateur par ID
 export const getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id).select('-MOT_DE_PASSE');
+    const user = await User.findOne({ ID: req.params.id }).select('-MOT_DE_PASSE');
 
     if (!user) {
       return res.status(404).json({
@@ -164,7 +164,7 @@ export const updateUser = async (req, res) => {
     } = req.body;
 
     // Vérifier si l'utilisateur existe
-    const user = await User.findById(req.params.id);
+    const user = await User.findOne({ ID: req.params.id });
     if (!user) {
       return res.status(404).json({
         success: false,
@@ -222,7 +222,7 @@ export const updateUser = async (req, res) => {
 // Basculer le statut actif/inactif
 export const toggleUserStatus = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findOne({ ID: req.params.id });
 
     if (!user) {
       return res.status(404).json({
@@ -259,7 +259,7 @@ export const toggleUserStatus = async (req, res) => {
 // Supprimer un utilisateur
 export const deleteUser = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findOne({ ID: req.params.id });
 
     if (!user) {
       return res.status(404).json({

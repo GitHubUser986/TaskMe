@@ -1,11 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Bell, Info, CheckCircle, AlertTriangle, XCircle, 
   Check, Trash2, Filter, Search, Clock 
 } from 'lucide-react';
+import { notificationAPI } from '../services/api';
+
+interface BackendNotification {
+  _id: string;
+  ID: string;
+  ID_AUDITEUR: string;
+  LUE: boolean;
+  MESSAGE: string;
+  TYPE: 'Information' | 'Echoue' | 'Rappel' | 'Succès';
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface Notification {
-  id: number;
+  id: string;
   title: string;
   description: string;
   date: string;
@@ -14,43 +26,84 @@ interface Notification {
 }
 
 const NotificationsPage: React.FC = () => {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: 1,
-      title: 'Nouvelle tâche assignée',
-      description: 'Vous avez été assigné à la formation React avancé.',
-      date: '2026-01-15',
-      type: 'info',
-      isRead: false,
-    },
-    {
-      id: 2,
-      title: 'Rappel réunion',
-      description: 'La réunion sur le projet PFE commencera à 14h.',
-      date: '2026-01-14',
-      type: 'warning',
-      isRead: true,
-    },
-    {
-      id: 3,
-      title: 'Tâche terminée',
-      description: 'La tâche "Audit qualité" a été validée par le responsable.',
-      date: '2026-01-13',
-      type: 'success',
-      isRead: false,
-    },
-    {
-      id: 4,
-      title: 'Erreur système',
-      description: 'Un problème technique est survenu lors de la sauvegarde des données.',
-      date: '2026-01-12',
-      type: 'error',
-      isRead: true,
-    },
-  ]);
-
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Récupérer l'ID de l'utilisateur connecté
+  const getCurrentUserId = (): string | null => {
+    const user = localStorage.getItem('user');
+    if (user) {
+      const userData = JSON.parse(user);
+      return userData.ID || userData._id || null;
+    }
+    return null;
+  };
+
+  // Mapper le type backend vers le type frontend
+  const mapNotificationType = (backendType: string): 'info' | 'success' | 'warning' | 'error' => {
+    switch (backendType) {
+      case 'Information':
+        return 'info';
+      case 'Succès':
+        return 'success';
+      case 'Rappel':
+        return 'warning';
+      case 'Echoue':
+        return 'error';
+      default:
+        return 'info';
+    }
+  };
+
+  // Extraire le titre du message (première ligne ou 50 premiers caractères)
+  const extractTitle = (message: string): string => {
+    const firstLine = message.split('\n')[0];
+    return firstLine.length > 50 ? firstLine.substring(0, 50) + '...' : firstLine;
+  };
+
+  // Convertir les notifications backend vers le format frontend
+  const transformNotification = (backendNotif: BackendNotification): Notification => {
+    return {
+      id: backendNotif.ID,
+      title: extractTitle(backendNotif.MESSAGE),
+      description: backendNotif.MESSAGE,
+      date: backendNotif.createdAt,
+      type: mapNotificationType(backendNotif.TYPE),
+      isRead: backendNotif.LUE,
+    };
+  };
+
+  // Charger les notifications
+  const loadNotifications = async () => {
+    const userId = getCurrentUserId();
+    
+    if (!userId) {
+      setError('Utilisateur non connecté');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await notificationAPI.getByUser(userId);
+      console.log('Notifications brutes reçues:', response.data);
+      const transformedNotifications = response.data.map(transformNotification);
+      setNotifications(transformedNotifications);
+    } catch (err: any) {
+      console.error('Erreur lors du chargement des notifications:', err);
+      setError(err.response?.data?.message || 'Erreur lors du chargement des notifications');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
 
   const getIconAndColor = (type: string) => {
     switch (type) {
@@ -67,20 +120,41 @@ const NotificationsPage: React.FC = () => {
     }
   };
 
-  const markAsRead = (id: number) => {
-    setNotifications(
-      notifications.map((notif) =>
-        notif.id === id ? { ...notif, isRead: true } : notif
-      )
-    );
+  const markAsRead = async (id: string) => {
+    try {
+      await notificationAPI.markAsRead(id);
+      setNotifications(
+        notifications.map((notif) =>
+          notif.id === id ? { ...notif, isRead: true } : notif
+        )
+      );
+    } catch (err: any) {
+      console.error('Erreur lors du marquage comme lu:', err);
+      alert('Erreur lors du marquage de la notification');
+    }
   };
 
-  const deleteNotification = (id: number) => {
-    setNotifications(notifications.filter((notif) => notif.id !== id));
+  const deleteNotification = async (id: string) => {
+    try {
+      await notificationAPI.delete(id);
+      setNotifications(notifications.filter((notif) => notif.id !== id));
+    } catch (err: any) {
+      console.error('Erreur lors de la suppression:', err);
+      alert('Erreur lors de la suppression de la notification');
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(notifications.map((notif) => ({ ...notif, isRead: true })));
+  const markAllAsRead = async () => {
+    const userId = getCurrentUserId();
+    if (!userId) return;
+
+    try {
+      await notificationAPI.markAllAsRead(userId);
+      setNotifications(notifications.map((notif) => ({ ...notif, isRead: true })));
+    } catch (err: any) {
+      console.error('Erreur lors du marquage global:', err);
+      alert('Erreur lors du marquage de toutes les notifications');
+    }
   };
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
@@ -92,9 +166,36 @@ const NotificationsPage: React.FC = () => {
       notif.description.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Chargement des notifications...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="bg-red-500/20 border border-red-500/30 rounded-2xl p-8 max-w-md">
+          <XCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <p className="text-red-400 text-center">{error}</p>
+          <button
+            onClick={loadNotifications}
+            className="mt-4 w-full px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl transition-all"
+          >
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen relative overflow-hidden">
-
       <div className="max-w-5xl mx-auto px-4 relative z-10">
         {/* Header */}
         <div className="mb-8">
@@ -178,7 +279,7 @@ const NotificationsPage: React.FC = () => {
             </div>
           ) : (
             filteredNotifications.map((notif) => {
-              const { icon: Icon, color, bg, border } = getIconAndColor(notif.type);
+              const { icon: Icon, color } = getIconAndColor(notif.type);
               
               return (
                 <div
@@ -203,7 +304,7 @@ const NotificationsPage: React.FC = () => {
                           <div className="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0 animate-pulse"></div>
                         )}
                       </div>
-                      <p className="text-gray-400 mb-3">{notif.description}</p>
+                      <p className="text-gray-400 mb-3 whitespace-pre-wrap">{notif.description}</p>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2 text-sm text-gray-500">
                           <Clock className="w-4 h-4" />

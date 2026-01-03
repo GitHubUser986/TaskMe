@@ -364,7 +364,7 @@ const RegisterPage: React.FC = () => {
             </div>
           </div>
 
-          <p className="text-center text-gray-400">
+          <p className="text-center text-gray-400 mt-10">
             Vous avez déjà un compte? 
             <a 
               href="/login" 

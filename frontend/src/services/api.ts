@@ -113,21 +113,76 @@ export const affectationAPI = {
   create: (data: any) => api.post('/affectation', data),
   update: (id: string, data: any) => api.put(`/affectation/${id}`, data),
   delete: (id: string) => api.delete(`/affectation/${id}`),
+
+  getUserTasks: (userId: string) => 
+  api.get(`/affectation/mytasks/${userId}`),
+
+  getByTask: (taskId: string) => 
+  api.get(`/affectation/task/${taskId}`),
+  
 };
 
-// Chat
+// Chat - Messages par tâche
 export const chatAPI = {
-  getMessages: (params?: any) => api.get('/chat', { params }),
-  sendMessage: (data: any) => api.post('/chat', data),
-  deleteMessage: (id: string) => api.delete(`/chat/${id}`),
+  // Obtenir tous les messages d'une tâche
+  getMessages: (params: { idTache: string; currentUserId?: string }) => 
+    api.get(`/chat/tache/${params.idTache}`, { 
+      params: { currentUserId: params.currentUserId } 
+    }),
+  
+  // Envoyer un nouveau message
+  sendMessage: (data: {
+    ID_EXPEDITEUR: string;
+    ID_DESTINATAIRE: string;
+    ID_TACHE: string;
+    MESSAGE: string;
+  }) => api.post('/chat', data),
+  
+  // Obtenir les participants d'une tâche
+  getParticipants: (idTache: string, currentUserId?: string) =>
+    api.get(`/chat/tache/${idTache}/participants`, {
+      params: { currentUserId }
+    }),
+  
+  // Obtenir les tâches où l'utilisateur participe
+  getUserTaches: (userId: string) =>
+    api.get(`/affectation/mytasks/${userId}`),
+
+  // Obtenir les statistiques du chat d'une tâche
+  getStats: (idTache: string) =>
+    api.get(`/chat/tache/${idTache}/stats`),
 };
 
 // Notifications
 export const notificationAPI = {
-  getAll: (params?: any) => api.get('/notification', { params }),
-  markAsRead: (id: string) => api.patch(`/notification/${id}/read`),
-  markAllAsRead: () => api.patch('/notification/read-all'),
-  delete: (id: string) => api.delete(`/notification/${id}`),
+  // Obtenir toutes les notifications d'un utilisateur
+  getByUser: (userId: string) => 
+    api.get(`/notification/${userId}`),
+  
+  // Obtenir toutes les notifications (ancienne méthode pour compatibilité)
+  getAll: (params?: any) => 
+    api.get('/notification', { params }),
+  
+  // Créer une nouvelle notification
+  create: (data: {
+    ID: string;
+    ID_AUDITEUR: string;
+    MESSAGE: string;
+    TYPE: 'Information' | 'Echoue' | 'Rappel' | 'Succès';
+    LUE?: boolean;
+  }) => api.post('/notification', data),
+  
+  // Marquer une notification comme lue
+  markAsRead: (id: string) => 
+    api.patch(`/notification/${id}/read`),
+  
+  // Marquer toutes les notifications comme lues
+  markAllAsRead: (userId: string) => 
+    api.patch(`/notification/read-all/${userId}`),
+  
+  // Supprimer une notification
+  delete: (id: string) => 
+    api.delete(`/notification/${id}`),
 };
 
 // Historique

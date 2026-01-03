@@ -33,8 +33,7 @@ export const validateRegister = [
   body('EMAIL')
     .trim()
     .notEmpty().withMessage('L\'email est requis')
-    .isEmail().withMessage('Format d\'email invalide')
-    .normalizeEmail(),
+    .isEmail().withMessage('Format d\'email invalide'),
   
   body('MOT_DE_PASSE')
     .notEmpty().withMessage('Le mot de passe est requis')
@@ -73,9 +72,8 @@ export const validateLogin = [
   body('EMAIL')
     .trim()
     .notEmpty().withMessage('L\'email est requis')
-    .isEmail().withMessage('Format d\'email invalide')
-    .normalizeEmail(),
-  
+    .isEmail().withMessage('Format d\'email invalide'),
+
   body('MOT_DE_PASSE')
     .notEmpty().withMessage('Le mot de passe est requis'),
   
@@ -97,8 +95,7 @@ export const validateUpdateProfile = [
   body('EMAIL')
     .optional()
     .trim()
-    .isEmail().withMessage('Format d\'email invalide')
-    .normalizeEmail(),
+    .isEmail().withMessage('Format d\'email invalide'),
   
   handleValidationErrors
 ];

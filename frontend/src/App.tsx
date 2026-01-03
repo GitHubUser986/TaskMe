@@ -21,6 +21,7 @@ import SemiAutoAssignmentPage from './components/assignements/SemiAutoAssignment
 import AutoAssignmentPage from './components/assignements/AutoAssignmentPage';
 import VehiclesManagement from './pages/vehicles/VehiclesManagement';
 import AddVehicleForm from './pages/vehicles/AddVehicleForm';
+import EditVehicleForm from './pages/vehicles/EditVehicleForm';
 import UsersManagement from './pages/users/UserManagement';
 import CreateUserForm from './pages/users/AddUser';
 import ChatInternal from './components/chat/ChatRoom';
@@ -49,6 +50,7 @@ function App() {
                   <Routes>
                     {/* Dashboard */}
                     <Route path="/" element={<Dashboard />} />
+                    <Route path="/dashboard" element={<Dashboard />} />
 
                     {/* Tâches */}
                     <Route path="/create-task" element={<TaskForm />} />
@@ -62,6 +64,7 @@ function App() {
                     {/* Véhicules */}
                     <Route path="/vehicles" element={<VehiclesManagement />} />
                     <Route path="/vehicles/add" element={<AddVehicleForm />} />
+                    <Route path="/vehicles/edit/:id" element={<EditVehicleForm />} />
 
                     {/* Utilisateurs */}
                     <Route path="/users" element={<UsersManagement />} />

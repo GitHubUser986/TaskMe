@@ -30,14 +30,18 @@ const handleSubmit = async (e: React.FormEvent) => {
 
   try {
     const payload = {
-      EMAIL: formData.email,       // <-- majuscule
-      MOT_DE_PASSE: formData.password // <-- majuscule
+      EMAIL: formData.email,
+      MOT_DE_PASSE: formData.password
     };
 
     const response = await authAPI.login(payload);
+    
+    console.log('📥 Réponse complète:', response);
+    console.log('📦 Response.data:', response.data);
 
-    if (response.data.success) {
-      const { user, token } = response.data.data; 
+    // Option A : Si la structure est response.data.data
+    if (response.data.success && response.data.data) {
+      const { user, token } = response.data.data;
 
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
@@ -48,10 +52,27 @@ const handleSubmit = async (e: React.FormEvent) => {
         localStorage.removeItem('rememberedEmail');
       }
 
-      navigate('/');
+      navigate('/dashboard');
+    }
+    // Option B : Si la structure est response.data directement
+    else if (response.data.success) {
+      const { user, token } = response.data;
+
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+
+      if (remember) {
+        localStorage.setItem('rememberedEmail', formData.email);
+      } else {
+        localStorage.removeItem('rememberedEmail');
+      }
+      navigate('/dashboard');
+    } else {
+      
+      setError('Erreur de connexion');
     }
   } catch (err: any) {
-    console.error('Erreur de connexion:', err);
+    
     setError(
       err.response?.data?.message || 
       'Erreur de connexion. Vérifiez vos identifiants.'
@@ -60,7 +81,6 @@ const handleSubmit = async (e: React.FormEvent) => {
     setLoading(false);
   }
 };
-
 
   // Charger l'email mémorisé au montage du composant
   React.useEffect(() => {
@@ -196,7 +216,7 @@ const handleSubmit = async (e: React.FormEvent) => {
             </div>
           </div>
 
-          <p className="text-center text-gray-400 mt-6">
+          <p className="text-center text-gray-400 mt-10">
             Pas encore de compte? 
             <a 
               href="/register" 
