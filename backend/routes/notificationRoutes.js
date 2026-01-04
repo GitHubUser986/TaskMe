@@ -1,79 +1,59 @@
 import express from 'express';
-import Notification from '../models/Notification.js';
+import {
+  getNotificationsByUser,
+  getUnreadCount,
+  createNotification,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification
+} from '../controllers/notificationController.js';
+import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// GET all notifications by userId
-router.get('/:idUser', async (req, res) => {
-    try {
-        const notifications = await Notification.find({ 
-            ID_AUDITEUR: req.params.idUser 
-        }).sort({ createdAt: -1 }); // Tri par date décroissante
-        console.log('Notifications récupérées pour l\'utilisateur', req.params.idUser, ':', notifications);
-        
-        res.json(notifications);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
+// Toutes les routes nécessitent une authentification
+router.use(protect);
 
-// POST create new notification
-router.post('/', async (req, res) => {
-    const notification = new Notification(req.body);
-    try {
-        await notification.save();
-        res.status(201).json(notification);
-    } catch (error) {
-        res.status(400).json({ message: error.message });
-    }
-});
+/**
+ * @route   GET /api/notification/unread-count/:idUser
+ * @desc    Récupère le nombre de notifications non lues
+ * @access  Private
+ */
+router.get('/unread-count/:idUser', getUnreadCount);
 
-// PATCH mark notification as read
-router.patch('/:id/read', async (req, res) => {
-    try {
-        const notification = await Notification.findOneAndUpdate(
-            { ID: req.params.id },
-            { LUE: true },
-            { new: true }
-        );
-        
-        if (!notification) {
-            return res.status(404).json({ message: 'Notification non trouvée' });
-        }
-        
-        res.json(notification);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
+/**
+ * @route   GET /api/notification/:idUser
+ * @desc    Récupère toutes les notifications d'un utilisateur
+ * @access  Private
+ */
+router.get('/:idUser', getNotificationsByUser);
 
-// PATCH mark all notifications as read for a user
-router.patch('/read-all/:idUser', async (req, res) => {
-    try {
-        await Notification.updateMany(
-            { ID_AUDITEUR: req.params.idUser, LUE: false },
-            { LUE: true }
-        );
-        
-        res.json({ message: 'Toutes les notifications ont été marquées comme lues' });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
+/**
+ * @route   POST /api/notification
+ * @desc    Crée une nouvelle notification
+ * @access  Private
+ */
+router.post('/', createNotification);
 
-// DELETE notification
-router.delete('/:id', async (req, res) => {
-    try {
-        const notification = await Notification.findOneAndDelete({ ID: req.params.id });
-        
-        if (!notification) {
-            return res.status(404).json({ message: 'Notification non trouvée' });
-        }
-        
-        res.json({ message: 'Notification supprimée' });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
+/**
+ * @route   PATCH /api/notification/:id/read
+ * @desc    Marque une notification comme lue
+ * @access  Private
+ */
+router.patch('/:id/read', markAsRead);
+
+/**
+ * @route   PATCH /api/notification/read-all/:idUser
+ * @desc    Marque toutes les notifications comme lues
+ * @access  Private
+ */
+router.patch('/read-all/:idUser', markAllAsRead);
+
+/**
+ * @route   DELETE /api/notification/:id
+ * @desc    Supprime une notification
+ * @access  Private
+ */
+router.delete('/:id', deleteNotification);
 
 export default router;

@@ -5,6 +5,7 @@ const notificationSchema = new mongoose.Schema({
   ID_AUDITEUR: { type: String, required: true },
   LUE: { type: Boolean, default: false },
   MESSAGE: { type: String, required: true },
+  DATE: { type: Date, default: Date.now },
   TYPE: { type: String, enum: ["Information", "Echoue", "Rappel", "Succès"], required: true }
 }, {
   collection: "notification"

@@ -14,6 +14,7 @@ import affectationRoutes from "./routes/affectationRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import historiqueRoutes from "./routes/historiqueRoutes.js";
+import dashboardRoutes from "./routes/dashboardRoutes.js";
 
 dotenv.config();
 
@@ -50,6 +51,7 @@ app.use("/api/affectation", affectationRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/notification", notificationRoutes);
 app.use("/api/historique", historiqueRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 // Route de base (test)
 app.get("/", (req, res) => {

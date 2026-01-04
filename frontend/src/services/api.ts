@@ -88,6 +88,9 @@ export const userAPI = {
     api.get('/user/stats'),
 };
 
+// Dashboard API
+export { dashboardAPI } from './dashboardAPI';
+
 // Véhicules
 export const vehiculeAPI = {
   getAll: (params?: any) => api.get('/vehicule', { params }),
@@ -115,11 +118,50 @@ export const affectationAPI = {
   delete: (id: string) => api.delete(`/affectation/${id}`),
 
   getUserTasks: (userId: string) => 
-  api.get(`/affectation/mytasks/${userId}`),
+    api.get(`/affectation/mytasks/${userId}`),
 
   getByTask: (taskId: string) => 
-  api.get(`/affectation/task/${taskId}`),
+    api.get(`/affectation/task/${taskId}`),
+   
+  // Récupérer les données pour l'affectation manuelle
+  getManualData: (idTache: string) =>
+    api.get(`/affectation/manual/data/${idTache}`),
   
+  // Valider une affectation manuelle
+  validateManual: (data: {
+    idTache: string;
+    auditeursIds: string[];
+    vehiculesIds: string[];
+  }) => api.post('/affectation/manual/validate', data),
+  
+  // Créer une affectation manuelle
+  createManual: (data: {
+    idTache: string;
+    auditeursIds: string[];
+    vehiculesIds: string[];
+  }) => api.post('/affectation/manual/create', data),
+
+    /**
+   * Générer une proposition d'affectation semi-automatique
+   */
+  generateSemiAuto: (data: { idTache: string }) =>
+    api.post('/affectation/semi-auto/generate', data),
+  
+  /**
+   * Confirmer une affectation semi-automatique
+   */
+  confirmSemiAuto: (data: {
+    idTache: string;
+    auditeursIds: string[];
+    vehiculesIds: string[];
+    rapport: string;
+  }) => api.post('/affectation/semi-auto/confirm', data),
+  
+  /**
+   * Annuler une affectation semi-automatique
+   */
+  cancelSemiAuto: (idAffectation: string) =>
+    api.delete(`/affectation/semi-auto/cancel/${idAffectation}`),
 };
 
 // Chat - Messages par tâche
@@ -190,6 +232,9 @@ export const notificationAPI = {
   // Obtenir toutes les notifications (ancienne méthode pour compatibilité)
   getAll: (params?: any) => 
     api.get('/notification', { params }),
+
+    getUnreadCount: (userId: string) => 
+    api.get(`/notification/unread-count/${userId}`),
   
   // Créer une nouvelle notification
   create: (data: {

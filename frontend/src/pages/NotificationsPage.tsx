@@ -12,7 +12,7 @@ interface BackendNotification {
   LUE: boolean;
   MESSAGE: string;
   TYPE: 'Information' | 'Echoue' | 'Rappel' | 'Succès';
-  createdAt: string;
+  DATE: string;
   updatedAt: string;
 }
 
@@ -70,7 +70,7 @@ const NotificationsPage: React.FC = () => {
       id: backendNotif.ID,
       title: extractTitle(backendNotif.MESSAGE),
       description: backendNotif.MESSAGE,
-      date: backendNotif.createdAt,
+      date: backendNotif.DATE,
       type: mapNotificationType(backendNotif.TYPE),
       isRead: backendNotif.LUE,
     };
@@ -90,8 +90,8 @@ const NotificationsPage: React.FC = () => {
       setLoading(true);
       setError(null);
       const response = await notificationAPI.getByUser(userId);
-      console.log('Notifications brutes reçues:', response.data);
-      const transformedNotifications = response.data.map(transformNotification);
+      console.log('Notifications brutes reçues:', response.data.data.notifications);
+      const transformedNotifications = response.data.data.notifications.map(transformNotification);;
       setNotifications(transformedNotifications);
     } catch (err: any) {
       console.error('Erreur lors du chargement des notifications:', err);

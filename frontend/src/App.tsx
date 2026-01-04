@@ -11,7 +11,7 @@ import LoginPage from './pages/Login';
 import RegisterPage from './pages/Register';
 
 // Pages protégées
-import Dashboard from './components/Dashboard/Dashboard';
+import Dashboard from './pages/Dashboard';
 import TaskForm from './pages/task/CreateTaskForm';
 import TaskManagement from './pages/task/TaskManagement';
 import MyTasks from './components/assignements/MyTasks';

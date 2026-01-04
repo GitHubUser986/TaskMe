@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { Bell, MessageCircle, User, LogOut, Loader2 } from 'lucide-react';
 import { authAPI } from '../../services/api';
+import { useNotifications } from '../../hooks/useNotifications';
 
 interface UserData {
   ID: string;
@@ -12,10 +13,15 @@ interface UserData {
 }
 
 const Navbar: React.FC = () => {
-  const [notificationCount] = useState(3);
   const [user, setUser] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+
+  // Récupère le nombre de notifications non lues (rafraîchissement toutes les 30 secondes)
+  const { unreadCount, loading: notifLoading } = useNotifications(
+    user?.ID || null,
+    30000 // Rafraîchit toutes les 30 secondes
+  );
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -80,11 +86,15 @@ const Navbar: React.FC = () => {
           className="relative p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-300 group"
         >
           <Bell className="w-5 h-5" />
-          {notificationCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-red-500 to-pink-600 rounded-full text-xs font-bold text-white flex items-center justify-center shadow-lg animate-pulse">
-              {notificationCount}
+          {notifLoading ? (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-gray-500 rounded-full flex items-center justify-center">
+              <Loader2 className="w-3 h-3 text-white animate-spin" />
             </span>
-          )}
+          ) : unreadCount > 0 ? (
+            <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-red-500 to-pink-600 rounded-full text-xs font-bold text-white flex items-center justify-center shadow-lg animate-pulse">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          ) : null}
         </NavLink>
 
         {/* Chat */}
