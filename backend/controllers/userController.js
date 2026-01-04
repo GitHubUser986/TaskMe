@@ -369,3 +369,129 @@ export const getUserStats = async (req, res) => {
     });
   }
 };
+
+export const getUsersStatuses = async (req, res) => {
+  try {
+    const { ids } = req.query;
+
+    if (!ids) {
+      return res.status(400).json({
+        success: false,
+        message: "Le paramètre 'ids' est requis"
+      });
+    }
+
+    // Convertir la chaîne en tableau
+    const userIds = ids.split(',').map(id => id.trim()).filter(id => id);
+
+    if (userIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Aucun ID d'utilisateur valide fourni"
+      });
+    }
+
+    // Limiter à 50 utilisateurs max par requête pour éviter les abus
+    if (userIds.length > 50) {
+      return res.status(400).json({
+        success: false,
+        message: "Maximum 50 utilisateurs par requête"
+      });
+    }
+
+    // Récupérer uniquement les champs nécessaires
+    const users = await User.find(
+      { ID: { $in: userIds }, ACTIF: true },
+      { ID: 1, DERNIERE_CONNEXION: 1, _id: 0 }
+    );
+
+    // Calculer le statut pour chaque utilisateur
+    const now = new Date();
+    const statuses = {};
+
+    users.forEach(user => {
+      const status = calculateUserStatus(user.DERNIERE_CONNEXION, now);
+      statuses[user.ID] = {
+        status: status,
+        lastActivity: user.DERNIERE_CONNEXION || null
+      };
+    });
+
+    // Ajouter les utilisateurs non trouvés comme 'offline'
+    userIds.forEach(userId => {
+      if (!statuses[userId]) {
+        statuses[userId] = {
+          status: 'offline',
+          lastActivity: null
+        };
+      }
+    });
+
+    res.status(200).json({
+      success: true,
+      data: statuses
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la récupération des statuts:', error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des statuts",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Mettre à jour la dernière activité de l'utilisateur actuel
+ * PUT /api/users/heartbeat
+ */
+export const updateHeartbeat = async (req, res) => {
+  try {
+    const userId = req.user?.ID; // Récupéré du middleware d'authentification
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: "Non authentifié"
+      });
+    }
+
+    // Mettre à jour DERNIERE_CONNEXION
+    await User.findOneAndUpdate(
+      { ID: userId },
+      { DERNIERE_CONNEXION: new Date() },
+      { new: true }
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Activité mise à jour"
+    });
+
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour du heartbeat:', error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la mise à jour de l'activité",
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Calculer le statut d'un utilisateur basé sur sa dernière connexion
+ */
+function calculateUserStatus(lastConnection, now = new Date()) {
+  if (!lastConnection) return 'offline';
+
+  const lastActivity = new Date(lastConnection);
+  const diffMinutes = Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60));
+
+  // En ligne si dernière activité < 5 minutes
+  if (diffMinutes < 5) return 'online';
+  // Absent si < 30 minutes
+  if (diffMinutes < 30) return 'away';
+  // Hors ligne sinon
+  return 'offline';
+}

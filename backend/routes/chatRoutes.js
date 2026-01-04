@@ -184,4 +184,69 @@ router.get("/tache/:idTache/stats", async (req, res) => {
     }
 });
 
+router.patch('/:id/read', markMessageAsRead);
+router.patch('/mark-all-read', markAllMessagesAsRead);
+
+async function markMessageAsRead (req, res) {
+  try {
+    const { id } = req.params;
+    
+    const message = await Chat.findOneAndUpdate(
+      { ID: id },
+      { LU: true },
+      { new: true }
+    );
+    
+    if (!message) {
+      return res.status(404).json({
+        success: false,
+        message: "Message non trouvé"
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      data: message
+    });
+  } catch (error) {
+    console.error("Erreur markMessageAsRead:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors du marquage du message",
+      error: error.message
+    });
+  }
+};
+
+
+async function markAllMessagesAsRead (req, res) {
+  try {
+    const { idTache, idExpediteur, idDestinataire } = req.body;
+    
+    const result = await Chat.updateMany(
+      {
+        ID_TACHE: idTache,
+        ID_EXPEDITEUR: idExpediteur,
+        ID_DESTINATAIRE: idDestinataire,
+        LU: false
+      },
+      { LU: true }
+    );
+    
+    res.status(200).json({
+      success: true,
+      message: `${result.modifiedCount} messages marqués comme lus`,
+      data: result
+    });
+  } catch (error) {
+    console.error("Erreur markAllMessagesAsRead:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors du marquage des messages",
+      error: error.message
+    });
+  }
+};
+
+
 export default router;

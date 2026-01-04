@@ -151,6 +151,34 @@ export const chatAPI = {
   // Obtenir les statistiques du chat d'une tâche
   getStats: (idTache: string) =>
     api.get(`/chat/tache/${idTache}/stats`),
+
+  // Marquer une notification comme lue
+  markAsRead: (id: string) => 
+    api.patch(`/notification/${id}/read`),
+  
+  // Marquer toutes les notifications comme lues
+  markAllAsRead: (userId: string) => 
+    api.patch(`/notification/read-all/${userId}`),
+  
+};
+
+// API des statuts utilisateurs
+export const userStatusAPI = {
+  /**
+   * Récupérer les statuts de plusieurs utilisateurs
+   * @param userIds - Tableau d'IDs utilisateurs
+   */
+  getMultipleStatuses: (userIds: string[]) => {
+    const idsParam = userIds.join(',');
+    return api.get(`/users/statuses?ids=${idsParam}`);
+  },
+
+  /**
+   * Envoyer un heartbeat pour mettre à jour l'activité
+   */
+  sendHeartbeat: () => {
+    return api.put('/users/heartbeat');
+  }
 };
 
 // Notifications

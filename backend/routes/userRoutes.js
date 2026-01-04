@@ -6,7 +6,9 @@ import {
   updateUser,
   toggleUserStatus,
   deleteUser,
-  getUserStats
+  getUserStats,
+  getUsersStatuses,
+  updateHeartbeat
 } from '../controllers/userController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -31,5 +33,13 @@ router.route('/:id')
 
 // Basculer le statut actif/inactif
 router.patch('/:id/toggle-status', authorize('ADMIN', 'SUPERADMIN'), toggleUserStatus);
+
+// Route pour récupérer les statuts de plusieurs utilisateurs
+// GET /api/users/statuses?ids=USER1,USER2,USER3
+router.get('/statuses', protect, getUsersStatuses);
+
+// Route pour mettre à jour l'activité de l'utilisateur (heartbeat)
+// PUT /api/users/heartbeat
+router.put('/heartbeat', protect, updateHeartbeat);
 
 export default router;

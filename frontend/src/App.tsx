@@ -29,6 +29,8 @@ import NotificationsPage from './pages/NotificationsPage';
 import GlobalHistory from './pages/History/GlobalHistory';
 import IndividualHistory from './pages/History/IndividualHistory';
 import ProfilePage from './components/users/UserProfile';
+import EditProfilePage from './components/users/EditProfilePage';
+
 
 function App() {
   const userName: string = 'Admin User';
@@ -80,6 +82,7 @@ function App() {
 
                     {/* Profil */}
                     <Route path="/profile" element={<ProfilePage />} />
+                    <Route path="/edit-profile" element={<EditProfilePage />} />
 
                     {/* Redirection par défaut vers Dashboard */}
                     <Route path="*" element={<Navigate to="/" replace />} />

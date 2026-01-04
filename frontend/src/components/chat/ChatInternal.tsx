@@ -100,6 +100,7 @@ const ChatInternal: React.FC<ChatInternalProps> = ({ idTache, currentUserId }) =
             lastMessage: lastMsg?.MESSAGE,
             unread: unreadCount > 0 ? unreadCount : undefined
           });
+
         } catch (err) {
           console.error(`Erreur lors du chargement de l'utilisateur ${participantId}:`, err);
         }

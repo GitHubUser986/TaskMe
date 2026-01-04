@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Search, Phone, Video, MoreVertical, Smile, Paperclip, Loader2, MessageSquare } from 'lucide-react';
+import { Send, Search, Phone, Video, MoreVertical, Smile, Paperclip, Loader2, MessageSquare, Users, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { chatAPI, userAPI, affectationAPI } from '../../services/api';
-import onlineStatusService from '../../services/onlineStatusService';
 
 interface Message {
   _id: string;
@@ -12,6 +11,7 @@ interface Message {
   ID_TACHE: string;
   MESSAGE: string;
   DATE_ENVOI: string;
+  LU?: boolean;
   expediteur?: {
     id: string;
     fullName: string;
@@ -26,7 +26,9 @@ interface Contact {
   email: string;
   status: 'online' | 'offline' | 'away';
   lastMessage?: string;
+  lastMessageDate?: string;
   unread?: number;
+  lastActivity?: Date;
 }
 
 interface Task {
@@ -49,17 +51,6 @@ const ChatInternal: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const pollInterval = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Initialiser le service de statut en ligne
-  useEffect(() => {
-    if (user?.ID) {
-      onlineStatusService.initialize(user.ID);
-    }
-    
-    return () => {
-      onlineStatusService.cleanup();
-    };
-  }, [user?.ID]);
-
   // Charger les tâches de l'utilisateur
   const loadUserTasks = async () => {
     if (!user?.ID) return;
@@ -67,35 +58,28 @@ const ChatInternal: React.FC = () => {
     try {
       const response = await affectationAPI.getUserTasks(user.ID);
       setTasks(response.data);
-
     } catch (err) {
       console.error("Erreur lors du chargement des tâches:", err);
     }
   };
 
-  // ✅ Charger les contacts depuis la collection Affectation uniquement
+  // Charger les contacts depuis la collection Affectation
   const loadContacts = async () => {
     if (!selectedTask || !user?.ID) return;
     
     try {
-      // 1️⃣ Récupérer toutes les affectations de cette tâche
       const affectationsResponse = await affectationAPI.getByTask(selectedTask.ID);
       const affectations = affectationsResponse.data;
       
-      // 2️⃣ Extraire les ID_AUDITEUR (gérer le cas où c'est un tableau)
       const auditeurIds = affectations
         .flatMap((aff: any) => {
-          // Si ID_AUDITEUR est un tableau, le décomposer
           if (Array.isArray(aff.ID_AUDITEUR)) {
             return aff.ID_AUDITEUR;
           }
-          // Sinon, retourner comme tableau
           return [aff.ID_AUDITEUR];
         })
-        .filter((id: string) => id && id !== user.ID); // Filtrer l'utilisateur actuel et les valeurs vides
-        console.log("Auditeur IDs:", auditeurIds);
+        .filter((id: string) => id && id !== user.ID);
       
-      // Supprimer les doublons
       const uniqueAuditeurIds = [...new Set(auditeurIds)];
       
       if (uniqueAuditeurIds.length === 0) {
@@ -104,24 +88,23 @@ const ChatInternal: React.FC = () => {
         return;
       }
       
-      // 3️⃣ Charger les infos de chaque auditeur
       const participantsData: Contact[] = [];
       
       for (const auditeurId of uniqueAuditeurIds as string[]) {
         try {
           const userResponse = await userAPI.getById(auditeurId);
-          console.log("User response for", auditeurId, ":", userResponse.data.data.user);
           const userData = userResponse.data.data.user;
           
           participantsData.push({
             id: userData.ID,
             name: `${userData.PRENOM} ${userData.NOM}`,
             email: userData.EMAIL,
-            status: onlineStatusService.getStatus(userData.ID),
-            lastMessage: undefined, // Sera mis à jour par updateContactsWithMessages
+            status: 'online',
+            lastActivity: userData.DERNIERE_CONNEXION ? new Date(userData.DERNIERE_CONNEXION) : undefined,
+            lastMessage: undefined,
+            lastMessageDate: undefined,
             unread: undefined
           });
-          console.log("Loaded user data for contact:", userData.ID);
         } catch (err) {
           console.error(`Erreur lors du chargement de l'utilisateur ${auditeurId}:`, err);
         }
@@ -129,7 +112,6 @@ const ChatInternal: React.FC = () => {
       
       setContacts(participantsData);
       
-      // 4️⃣ Sélectionner le premier contact automatiquement
       if (participantsData.length > 0 && !activeContact) {
         setActiveContact(participantsData[0]);
       }
@@ -140,39 +122,42 @@ const ChatInternal: React.FC = () => {
     }
   };
 
-  // ✅ Mettre à jour les contacts avec les infos des messages
-  const updateContactsWithMessages = () => {
+  // Mettre à jour les contacts avec les infos des messages
+  const updateContactsWithMessages = React.useCallback(() => {
+    if (messages.length === 0) return;
+    
     setContacts(prevContacts => 
       prevContacts.map(contact => {
-        // Trouver le dernier message de ce contact
-        const lastMsg = messages
-          .filter(m => 
-            m.ID_EXPEDITEUR === contact.id || m.ID_DESTINATAIRE === contact.id
-          )
+        const contactMessages = messages.filter(m => 
+          m.ID_EXPEDITEUR === contact.id || m.ID_DESTINATAIRE === contact.id
+        );
+        
+        const lastMsg = contactMessages
           .sort((a, b) => 
             new Date(b.DATE_ENVOI).getTime() - new Date(a.DATE_ENVOI).getTime()
           )[0];
         
-        // Compter les messages non lus
         const unreadCount = messages.filter(m => 
           m.ID_EXPEDITEUR === contact.id && 
-          m.ID_DESTINATAIRE === user?.ID
+          m.ID_DESTINATAIRE === user?.ID &&
+          m.LU === false
         ).length;
         
         return {
           ...contact,
+          status: 'online' as const,
           lastMessage: lastMsg?.MESSAGE,
+          lastMessageDate: lastMsg?.DATE_ENVOI,
           unread: unreadCount > 0 ? unreadCount : undefined
         };
       }).sort((a, b) => {
-        // Trier par présence de dernier message
-        if (!a.lastMessage && !b.lastMessage) return 0;
-        if (!a.lastMessage) return 1;
-        if (!b.lastMessage) return -1;
-        return 0;
+        if (!a.lastMessageDate && !b.lastMessageDate) return 0;
+        if (!a.lastMessageDate) return 1;
+        if (!b.lastMessageDate) return -1;
+        return new Date(b.lastMessageDate).getTime() - new Date(a.lastMessageDate).getTime();
       })
     );
-  };
+  }, [messages, user?.ID]);
 
   // Charger les messages de la tâche
   const loadMessages = async () => {
@@ -191,6 +176,29 @@ const ChatInternal: React.FC = () => {
     }
   };
 
+  // Marquer les messages comme lus quand on sélectionne un contact
+  const markMessagesAsRead = async (contactId: string) => {
+    if (!user?.ID || !selectedTask) return;
+    
+    const unreadMessages = messages.filter(m => 
+      m.ID_EXPEDITEUR === contactId && 
+      m.ID_DESTINATAIRE === user.ID &&
+      m.LU === false
+    );
+    
+    for (const msg of unreadMessages) {
+      try {
+        setMessages(prev => 
+          prev.map(m => 
+            m.ID === msg.ID ? { ...m, LU: true } : m
+          )
+        );
+      } catch (err) {
+        console.error('Erreur lors du marquage comme lu:', err);
+      }
+    }
+  };
+
   // Charger les tâches au montage
   useEffect(() => {
     if (user?.ID) {
@@ -204,20 +212,13 @@ const ChatInternal: React.FC = () => {
       loadContacts();
       loadMessages();
       
-      // Polling pour les nouveaux messages
       if (pollInterval.current) {
         clearInterval(pollInterval.current);
       }
       
       pollInterval.current = setInterval(() => {
         loadMessages();
-        // Mettre à jour les statuts en ligne
-        setContacts(prevContacts => 
-          prevContacts.map(contact => ({
-            ...contact,
-            status: onlineStatusService.getStatus(contact.id)
-          }))
-        );
+        loadContacts();
       }, 5000);
     }
     
@@ -230,10 +231,15 @@ const ChatInternal: React.FC = () => {
 
   // Mettre à jour les contacts quand les messages changent
   useEffect(() => {
-    if (messages.length > 0) {
-      updateContactsWithMessages();
+    updateContactsWithMessages();
+  }, [messages.length]); // Utiliser messages.length au lieu de messages
+
+  // Marquer les messages comme lus quand on change de contact
+  useEffect(() => {
+    if (activeContact?.id) {
+      markMessagesAsRead(activeContact.id);
     }
-  }, [messages]);
+  }, [activeContact?.id, selectedTask?.ID]); // Ajouter selectedTask pour éviter les appels multiples
 
   // Scroll automatique vers le bas
   useEffect(() => {
@@ -254,8 +260,6 @@ const ChatInternal: React.FC = () => {
       
       await chatAPI.sendMessage(newMessage);
       setInput('');
-      
-      // Recharger les messages
       await loadMessages();
       
     } catch (err: any) {
@@ -266,29 +270,10 @@ const ChatInternal: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'online': return 'bg-green-500';
-      case 'away': return 'bg-yellow-500';
-      case 'offline': return 'bg-gray-400';
-      default: return 'bg-gray-400';
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'online': return 'En ligne';
-      case 'away': return 'Absent';
-      case 'offline': return 'Hors ligne';
-      default: return 'Inconnu';
-    }
-  };
-
   const filteredContacts = contacts.filter(contact =>
     contact.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Filtrer les messages pour le contact actif
   const displayedMessages = activeContact && user?.ID
     ? messages.filter(msg => 
         (msg.ID_EXPEDITEUR === user.ID && msg.ID_DESTINATAIRE === activeContact.id) ||
@@ -307,23 +292,31 @@ const ChatInternal: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">Chat Interne</h1>
-          <p className="text-gray-600">Communiquez avec votre équipe sur vos tâches</p>
-          
-          {/* Sélecteur de tâche */}
-          <div className="mt-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Sélectionner une tâche
-            </label>
-            <select
+        <div className="mb-8 relative">
+          <div className="flex flex-col md:flex-row gap-4 bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 p-8 relative">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
+            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-24 -mb-24"></div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-3">
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">Chat Interne</h1>
+              </div>
+              <p className="text-gray-600">Communiquez avec votre équipe sur vos tâches</p>
+              
+              {/* Sélecteur de tâche */}
+              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border-1 border-white-500 mt-3">
+                <label className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Sélectionner une tâche
+                </label>
+                <select
               value={selectedTask?.ID || ''}
               onChange={(e) => {
                 const task = tasks.find(t => t.ID === e.target.value);
                 setSelectedTask(task || null);
                 setActiveContact(null);
               }}
-              className="w-full md:w-96 px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full md:w-96 px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-100"
             >
               <option value="">-- Sélectionner une tâche --</option>
               {tasks.map(task => (
@@ -332,10 +325,12 @@ const ChatInternal: React.FC = () => {
                 </option>
               ))}
             </select>
+              </div>
+            </div>
           </div>
           
           {error && (
-            <div className="mt-2 bg-red-50 border border-red-200 text-red-800 px-4 py-2 rounded-lg">
+            <div className="mt-4 bg-red-50 border-2 border-red-300 text-red-800 px-6 py-4 rounded-2xl font-semibold shadow-lg">
               {error}
             </div>
           )}
@@ -343,9 +338,7 @@ const ChatInternal: React.FC = () => {
 
         {selectedTask ? (
           <div className="flex flex-col md:flex-row gap-4 bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200">
-            {/* Liste des contacts */}
             <div className="w-full md:w-80 border-r border-gray-200 bg-gray-50">
-              {/* Header contacts */}
               <div className="p-4 border-b border-gray-200 bg-white">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -359,8 +352,7 @@ const ChatInternal: React.FC = () => {
                 </div>
               </div>
 
-              {/* Liste */}
-              <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 350px)' }}>
+              <div className="overflow-y-auto" style={{ maxHeight: 'calc(200vh - 450px)' }}>
                 {loading && contacts.length === 0 ? (
                   <div className="p-4 text-center text-gray-500">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
@@ -388,7 +380,6 @@ const ChatInternal: React.FC = () => {
                           <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
                             {contact.name.charAt(0)}
                           </div>
-                          <div className={`absolute bottom-0 right-0 w-3.5 h-3.5 ${getStatusColor(contact.status)} rounded-full border-2 border-white`}></div>
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
@@ -410,11 +401,9 @@ const ChatInternal: React.FC = () => {
               </div>
             </div>
 
-            {/* Fenêtre de chat */}
             <div className="flex-1 flex flex-col">
               {activeContact ? (
                 <>
-                  {/* Header chat */}
                   <div className="p-4 border-b border-gray-200 bg-white">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
@@ -422,11 +411,10 @@ const ChatInternal: React.FC = () => {
                           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
                             {activeContact.name.charAt(0)}
                           </div>
-                          <div className={`absolute bottom-0 right-0 w-3 h-3 ${getStatusColor(activeContact.status)} rounded-full border-2 border-white`}></div>
                         </div>
                         <div>
                           <h2 className="font-semibold text-gray-800">{activeContact.name}</h2>
-                          <p className="text-xs text-gray-500">{getStatusLabel(activeContact.status)}</p>
+                          <p className="text-xs text-gray-500">{activeContact.email}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -443,7 +431,6 @@ const ChatInternal: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Messages */}
                   <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50" style={{ maxHeight: 'calc(100vh - 450px)' }}>
                     {displayedMessages.length === 0 ? (
                       <div className="text-center text-gray-400 py-8">
@@ -484,7 +471,6 @@ const ChatInternal: React.FC = () => {
                     <div ref={messagesEndRef} />
                   </div>
 
-                  {/* Input zone */}
                   <div className="p-4 border-t border-gray-200 bg-white">
                     <div className="flex items-center gap-3">
                       <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all">

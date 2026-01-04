@@ -1,25 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { 
   User, Mail, Award, Briefcase, GraduationCap, 
-  BookOpen, Calendar, MapPin, Edit2, Save, X,
+  BookOpen, Calendar, Edit2, Plus,
   CheckCircle, Clock, FileText, Star, Trophy, Loader2
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { authAPI } from '../../services/api';
-
-interface Task {
-  id: number;
-  name: string;
-  type: string;
-  startDate: string;
-  endDate: string;
-  isRemunerated: boolean;
-  specialty: string;
-  grades: string;
-  requiresVehicle: boolean;
-  direction: string;
-  pdfFile?: string;
-  seats: number;
-}
 
 interface UserProfile {
   ID: string;
@@ -37,11 +23,11 @@ interface UserProfile {
 }
 
 const ProfilePage: React.FC = () => {
-  const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState<'info' | 'diplomas' | 'formations' | 'tasks'>('info');
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   // Charger les données de l'utilisateur connecté
   useEffect(() => {
@@ -61,6 +47,10 @@ const ProfilePage: React.FC = () => {
 
     fetchUserData();
   }, []);
+
+  const handleEditProfile = () => {
+    navigate('/edit-profile');
+  };
 
   const getRoleColor = (role: string) => {
     switch (role) {
@@ -90,8 +80,34 @@ const ProfilePage: React.FC = () => {
 
   const getYearsOfService = (joinDate?: string) => {
     if (!joinDate) return 'N/A';
-    const years = new Date().getFullYear() - new Date(joinDate).getFullYear();
-    return `${years} an${years > 1 ? 's' : ''}`;
+    
+    const now = new Date();
+    const join = new Date(joinDate);
+    const diffTime = Math.abs(now.getTime() - join.getTime());
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Calcul précis en années
+    const years = now.getFullYear() - join.getFullYear();
+    const monthDiff = now.getMonth() - join.getMonth();
+    const dayDiff = now.getDate() - join.getDate();
+    
+    // Ajustement si l'anniversaire n'est pas encore passé cette année
+    const adjustedYears = monthDiff < 0 || (monthDiff === 0 && dayDiff < 0) ? years - 1 : years;
+    
+    if (adjustedYears >= 1) {
+      return `${adjustedYears} an${adjustedYears > 1 ? 's' : ''}`;
+    }
+    
+    // Calcul en mois si moins d'un an
+    const months = monthDiff < 0 ? 12 + monthDiff : monthDiff;
+    const totalMonths = adjustedYears * 12 + months;
+    
+    if (totalMonths >= 1) {
+      return `${totalMonths} mois`;
+    }
+    
+    // Affichage en jours si moins d'un mois
+    return `${diffDays} jour${diffDays > 1 ? 's' : ''}`;
   };
 
   if (loading) {
@@ -159,11 +175,11 @@ const ProfilePage: React.FC = () => {
                     <p className="text-gray-300 max-w-2xl leading-relaxed">{user.SPECIALITE}</p>
                   </div>
                   <button
-                    onClick={() => setIsEditing(!isEditing)}
+                    onClick={handleEditProfile}
                     className="px-4 py-2 bg-slate-700/50 hover:bg-slate-700 text-white rounded-lg transition-all duration-300 flex items-center gap-2"
                   >
-                    {isEditing ? <X className="w-4 h-4" /> : <Edit2 className="w-4 h-4" />}
-                    {isEditing ? 'Annuler' : 'Modifier'}
+                    <Edit2 className="w-4 h-4" />
+                    Modifier
                   </button>
                 </div>
               </div>
@@ -336,7 +352,14 @@ const ProfilePage: React.FC = () => {
               {user.DIPLOMES.length === 0 ? (
                 <div className="text-center py-12">
                   <GraduationCap className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">Aucun diplôme enregistré</p>
+                  <p className="text-gray-400 mb-4">Aucun diplôme enregistré</p>
+                  <button
+                    onClick={handleEditProfile}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-300 flex items-center gap-2 mx-auto"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Ajouter des diplômes
+                  </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4">
@@ -370,7 +393,14 @@ const ProfilePage: React.FC = () => {
               {user.FORMATIONS.length === 0 ? (
                 <div className="text-center py-12">
                   <BookOpen className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                  <p className="text-gray-400">Aucune formation enregistrée</p>
+                  <p className="text-gray-400 mb-4">Aucune formation enregistrée</p>
+                  <button
+                    onClick={handleEditProfile}
+                    className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-300 flex items-center gap-2 mx-auto"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Ajouter des formations
+                  </button>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
