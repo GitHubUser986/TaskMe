@@ -260,8 +260,89 @@ export const notificationAPI = {
 
 // Historique
 export const historiqueAPI = {
-  getAll: (params?: any) => api.get('/historique', { params }),
-  getById: (id: string) => api.get(`/historique/${id}`),
+  /**
+   * Récupérer l'historique global (système uniquement, ID_AUDITEUR = null)
+   */
+  getGlobal: () => {
+    return api.get('/historique/global');
+  },
+
+  /**
+   * Récupérer tout l'historique avec filtres (historique + affectations combinés)
+   * Utilisé par GlobalHistory.tsx
+   */
+  getAll: (params?: {
+    search?: string;
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    type?: string;
+  }) => {
+    // Nettoyer les paramètres vides
+    const cleanParams = Object.fromEntries(
+      Object.entries(params || {}).filter(([_, v]) => v !== '' && v !== null && v !== undefined)
+    );
+    return api.get('/historique', { params: cleanParams });
+  },
+
+  /**
+   * Récupérer l'historique d'un utilisateur spécifique
+   * Combine l'historique direct + affectations de l'utilisateur
+   * Utilisé par IndividualHistory.tsx
+   */
+  getByUser: (userId: string, params?: {
+    startDate?: string;
+    endDate?: string;
+    status?: string;
+    type?: string;
+  }) => {
+    const cleanParams = Object.fromEntries(
+      Object.entries(params || {}).filter(([_, v]) => v !== '' && v !== null && v !== undefined)
+    );
+    return api.get(`/historique/user/${userId}`, { params: cleanParams });
+  },
+
+  /**
+   * Récupérer l'historique d'une tâche spécifique
+   */
+  getByTask: (taskId: string) => {
+    return api.get(`/historique/task/${taskId}`);
+  },
+
+  /**
+   * Récupérer les statistiques d'historique
+   */
+  getStats: (params?: {
+    startDate?: string;
+    endDate?: string;
+    userId?: string;
+  }) => {
+    const cleanParams = Object.fromEntries(
+      Object.entries(params || {}).filter(([_, v]) => v !== '' && v !== null && v !== undefined)
+    );
+    return api.get('/historique/stats', { params: cleanParams });
+  },
+
+  /**
+   * Créer un nouvel historique
+   */
+  create: (data: {
+    ID?: string;
+    ID_AUDITEUR: string[] | null;
+    ID_TACHE: string;
+    DETAILS: string;
+    ACTION: string;
+  }) => {
+    return api.post('/historique', data);
+  },
+
+  /**
+   * Supprimer un historique
+   */
+  delete: (id: string) => {
+    return api.delete(`/historique/${id}`);
+  },
 };
+
 
 export default api;

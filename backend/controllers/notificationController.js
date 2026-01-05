@@ -1,4 +1,6 @@
 import Notification from '../models/Notification.js';
+import User from '../models/User.js';
+import { sendNotificationEmail } from '../services/emailService.js';
 
 // Helper pour formater la réponse
 const successResponse = (data, message = "Succès") => ({ 
@@ -49,14 +51,43 @@ export const getUnreadCount = async (req, res) => {
 
 /**
  * POST /api/notification
- * Crée une nouvelle notification
+ * Crée une nouvelle notification ET envoie un email
  */
 export const createNotification = async (req, res) => {
   try {
+    // 1. Créer la notification
     const notification = new Notification(req.body);
     await notification.save();
     
-    res.status(201).json(successResponse({ notification }, "Notification créée avec succès"));
+    // 2. Récupérer les informations de l'utilisateur pour l'email
+    const user = await User.findOne({ ID: req.body.ID_AUDITEUR });
+    
+    if (user && user.EMAIL) {
+      // 3. Envoyer l'email de manière asynchrone (ne bloque pas la réponse)
+      const userName = `${user.PRENOM} ${user.NOM}`;
+      
+      sendNotificationEmail(
+        user.EMAIL,
+        notification.TYPE,
+        notification.MESSAGE,
+        userName
+      ).then(result => {
+        if (result.success) {
+          console.log(`Email envoyé à ${user.EMAIL} pour la notification ${notification.ID}`);
+        } else {
+          console.error(`Échec de l'envoi d'email à ${user.EMAIL}:`, result.error);
+        }
+      });
+    } else {
+      console.warn(`Utilisateur ${req.body.ID_AUDITEUR} non trouvé ou sans email`);
+    }
+    
+    // 4. Répondre immédiatement (sans attendre l'email)
+    res.status(201).json(successResponse(
+      { notification }, 
+      "Notification créée avec succès"
+    ));
+    
   } catch (error) {
     console.error('Erreur createNotification:', error);
     res.status(400).json(errorResponse(error.message));
