@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Mail, Phone, Award, Briefcase, Save, X, AlertCircle, CheckCircle, Lock } from 'lucide-react';
+import { User, Mail, Award, Briefcase, Save, X, AlertCircle, CheckCircle, Lock } from 'lucide-react';
 import { userAPI } from '../../services/api';
 
 interface UserFormData {
@@ -151,7 +151,7 @@ const AddUser: React.FC = () => {
           MOT_DE_PASSE: '',
           confirmPassword: '',
           SPECIALITE: '',
-          GRADE: 'C',
+          GRADE: 'A',
           ROLE: 'USER'
         });
         setErrors({});

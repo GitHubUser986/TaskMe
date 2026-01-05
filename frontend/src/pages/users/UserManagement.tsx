@@ -72,7 +72,6 @@ const UsersManagement: React.FC = () => {
       const response = await userAPI.getAll(params);
       
       if (response.data.success) {
-        console.log(response.data.data.users);
         setUsers(response.data.data.users);
         setError('');
       }
@@ -122,7 +121,6 @@ const handleEditSubmit = async (e: React.FormEvent) => {
       fetchStats(); // rafraîchir les stats
       setIsEditModalOpen(false);
       alert('Utilisateur mis à jour avec succès');
-      navigate('/users');
     }
   } catch (err: any) {
     console.error('Erreur lors de la mise à jour:', err);

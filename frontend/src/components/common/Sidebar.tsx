@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, ListTodo, Users, Car, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Home, ListTodo, Users, Car, Clock, ChevronDown, ChevronUp, ClipboardCheck } from 'lucide-react';
 import logo from '../../assets/taskme.png';
 
 const Sidebar: React.FC = () => {
@@ -8,6 +8,7 @@ const Sidebar: React.FC = () => {
 
   const menuItems = [
     { to: '/', icon: Home, label: 'Accueil' },
+    { to: '/my-tasks', icon: ClipboardCheck, label: 'Mes tâches' },
     { to: '/tasks', icon: ListTodo, label: 'Gestion des tâches' },
     { to: '/assignment', icon: ListTodo, label: 'Gestion des affectations' },
     { to: '/users', icon: Users, label: 'Gestion des utilisateurs' },

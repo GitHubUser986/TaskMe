@@ -322,7 +322,7 @@ export const confirmerAffectationSemiAutomatique = async (req, res) => {
       ID_AUDITEUR: auditeursIds,
       ID_VEHICULE: vehiculesIds || [],
       DATE_AFFECTATION: new Date(),
-      MODE_AFFECTATION: "Semi-automatique",
+      MODE_AFFECTATION: "Semi-automatisé",
       STATUS: "À venir",
       DECISION: "En Attente"
     });
