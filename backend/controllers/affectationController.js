@@ -1,3 +1,7 @@
+import path from 'path';
+import fs from 'fs';
+import {jsPDF} from 'jspdf';
+
 import Affectation from '../models/Affectation.js';
 import Tache from '../models/Tache.js';
 import User from '../models/User.js';
@@ -267,6 +271,52 @@ export const validerAffectationManuelle = async (req, res) => {
   }
 };
 
+// Génération du PDF avec sauvegarde sur le serveur
+const genererPDF = (contenu, idTache) => {
+  const pdf = new jsPDF('p', 'mm', 'a4');
+
+  const margeX = 15;
+  let y = 20;
+  const lineHeight = 7;
+
+  pdf.setFont('Times', 'Normal');
+  pdf.setFontSize(11);
+
+  const lignes = pdf.splitTextToSize(contenu, 180);
+
+  lignes.forEach((ligne) => {
+    if (y > 280) {
+      pdf.addPage();
+      y = 20;
+    }
+    pdf.text(ligne, margeX, y);
+    y += lineHeight;
+  });
+
+  // Créer le dossier uploads/rapports s'il n'existe pas
+  const uploadDir = path.join(process.cwd(), 'uploads', 'rapports');
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+
+  // Générer le nom de fichier unique
+  const fileName = `rapport_${idTache}_${Date.now()}.pdf`;
+  const filePath = path.join(uploadDir, fileName);
+
+  // Sauvegarder le PDF
+  const pdfBuffer = pdf.output('arraybuffer');
+  fs.writeFileSync(filePath, Buffer.from(pdfBuffer));
+
+  // Retourner les métadonnées
+  return {
+    fileName: fileName,
+    filePath: `/uploads/rapports/${fileName}`,
+    mimeType: 'application/pdf',
+    size: fs.statSync(filePath).size,
+    createdAt: new Date()
+  };
+};
+
 /**
  * Crée une affectation manuelle avec rapport des contraintes
  */
@@ -317,11 +367,14 @@ export const creerAffectationManuelle = async (req, res) => {
       });
     }
     
-    // Générer le rapport
+    // Générer le rapport texte
     const validationResult = { contraintesNonRespectees };
-    const rapport = genererRapportContraintes(validationResult, tache);
+    const rapportTexte = genererRapportContraintes(validationResult, tache);
     
-    // Créer l'affectation
+    // Générer le PDF et obtenir les métadonnées
+    const rapportMetadata = genererPDF(rapportTexte, idTache);
+    
+    // Créer l'affectation avec les métadonnées du rapport
     const nouvelleAffectation = new Affectation({
       ID: `AFF-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
       ID_TACHE: idTache,
@@ -329,6 +382,7 @@ export const creerAffectationManuelle = async (req, res) => {
       ID_VEHICULE: vehiculesIds || [],
       DATE_AFFECTATION: new Date(),
       MODE_AFFECTATION: "Manuel",
+      RAPPORT: rapportMetadata, // Objet avec métadonnées au lieu du texte
       STATUS: "À venir",
       DECISION: "En Attente"
     });
@@ -340,32 +394,33 @@ export const creerAffectationManuelle = async (req, res) => {
       ID: `HIST-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
       ID_AUDITEUR: auditeursIds,
       ID_TACHE: idTache,
-      DETAILS: rapport,
+      DETAILS: rapportTexte,
       ACTION: "Affectation"
     });
     
     await historique.save();
 
-    // Créer les notifications pour chaque auditeur concernées
+    // Créer les notifications pour chaque auditeur
     for (let index = 0; index < auditeursIds.length; index++) {
-        const auditeurId = auditeursIds[index];
-        const notification = new Notification({
-            ID: `N-${Date.now()}-${Math.random().toString(36).substr(2,9).toUpperCase()}`,
-            ID_AUDITEUR: auditeurId,
-            ID_TACHE: idTache,
-            TYPE: 'Information',
-            MESSAGE: `Vous avez été affecter à une tâche, consulter vos tâches pour plus de détails `,
-            LUE : false
-        });
-        
-        await notification.save();
+      const auditeurId = auditeursIds[index];
+      const notification = new Notification({
+        ID: `N-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
+        ID_AUDITEUR: auditeurId,
+        ID_TACHE: idTache,
+        TYPE: 'Information',
+        MESSAGE: `Vous avez été affecté à une tâche, consultez vos tâches pour plus de détails`,
+        LUE: false
+      });
+      
+      await notification.save();
     }
     
     res.status(201).json({
       success: true,
       message: "Affectation créée avec succès",
       affectation: nouvelleAffectation,
-      rapport,
+      rapport: rapportMetadata, // Renvoyer les métadonnées
+      rapportTexte: rapportTexte, // Optionnel: le texte si besoin
       contraintesNonRespectees,
       historiqueId: historique.ID
     });
@@ -374,7 +429,7 @@ export const creerAffectationManuelle = async (req, res) => {
     console.error("Erreur création affectation:", error);
     res.status(500).json({ message: error.message });
   }
-};
+}; 
 
 /**
  * Récupère les données nécessaires pour l'affectation manuelle

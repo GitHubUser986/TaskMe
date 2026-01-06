@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { affectationAPI, tacheAPI } from '../../services/api';
+import { affectationAPI, tacheAPI, userAPI } from '../../services/api';
 
 interface MyTask {
   id: string;
@@ -9,6 +9,7 @@ interface MyTask {
   startDate: string;
   endDate: string;
   status: 'Affectée' | 'En attente' | 'Créée' | 'Terminée';
+  decision: 'Acceptée' | 'Refusée' | 'Déléguée' | 'En Attente';
   description: string;
   direction: string;
   specialty: string;
@@ -16,6 +17,11 @@ interface MyTask {
   isRemunerated: boolean;
   remunerationAmount: string;
   hasVehicle: boolean;
+  affectationId?: string;
+  dateAffectation?: Date;
+  isDelegation?: boolean;
+  idAuditeurDelegant?: string;
+  delaiRestant?: string;
 }
 
 const MyTasks: React.FC = () => {
@@ -25,6 +31,14 @@ const MyTasks: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Modals
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showDelegateModal, setShowDelegateModal] = useState(false);
+  const [justificatif, setJustificatif] = useState('');
+  
+  const [auditeurs, setAuditeurs] = useState<any[]>([]);
+  const [selectedAuditeur, setSelectedAuditeur] = useState('');
 
   const formatPeriod = (startDate: string, endDate: string) => {
     const start = new Date(startDate);
@@ -37,32 +51,80 @@ const MyTasks: React.FC = () => {
     return `${start.toLocaleDateString('fr-FR', { day: 'numeric'})} - ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
   };
 
-const transformTaskData = (apiTask: any): MyTask => {
-  const tache = apiTask.data?.tache || apiTask; // si data.tache existe, on l'utilise, sinon fallback
-
-  return {
-    id: String(tache.ID),
-    taskName: tache.NOM || 'Sans nom',
-    type: tache.TYPE || tache.type || 'Non spécifié',
-    period: formatPeriod(
-      tache.PERIODE_EXECUTION?.DATE_DEBUT,
-      tache.PERIODE_EXECUTION?.DATE_FIN
-    ),
-    startDate: tache.PERIODE_EXECUTION?.DATE_DEBUT,
-    endDate: tache.PERIODE_EXECUTION?.DATE_FIN,
-    status: apiTask.STATUS || 'Affectée',
-    description: tache.DESCRIPTION || tache.description || 'Aucune description disponible',
-    direction: tache.DIRECTION || tache.direction || 'Non spécifiée',
-    specialty: tache.SPECIALITES_CONCERNEES?.[0] || tache.SPECIALITE || tache.specialty || 'Non spécifiée',
-    grade: tache.GRADES_CONCERNES?.[0] || tache.GRADE || tache.grade || 'Non spécifié',
-    isRemunerated: tache.REMUNEREE || tache.EST_REMUNERE || tache.estRemunere || tache.isRemunerated || false,
-    remunerationAmount: tache.MONTANT || tache.MONTANT_REMUNERATION || tache.montantRemuneration || tache.remunerationAmount || '0',
-    hasVehicle: tache.NECESSITE_VEHICULE || tache.VEHICULE_FOURNI || tache.vehiculeFourni || tache.hasVehicle || false
+  const calculerDelaiRestant = (dateAffectation: Date): string => {
+    const maintenant = new Date();
+    const delaiLimite = new Date(dateAffectation.getTime() + 24 * 60 * 60 * 1000);
+    const diffMs = delaiLimite.getTime() - maintenant.getTime();
+    
+    if (diffMs <= 0) {
+      return "Délai dépassé";
+    }
+    
+    const heures = Math.floor(diffMs / (1000 * 60 * 60));
+    const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    return `${heures}h ${minutes}min restantes`;
   };
-};
 
+  const transformTaskData = (apiTask: any, affectation: any): MyTask => {
+    const tache = apiTask.data?.tache || apiTask;
 
-useEffect(() => {
+    return {
+      id: String(tache.ID),
+      affectationId: affectation.ID,
+      taskName: tache.NOM || 'Sans nom',
+      type: tache.TYPE || tache.type || 'Non spécifié',
+      period: formatPeriod(
+        tache.PERIODE_EXECUTION?.DATE_DEBUT,
+        tache.PERIODE_EXECUTION?.DATE_FIN
+      ),
+      startDate: tache.PERIODE_EXECUTION?.DATE_DEBUT,
+      endDate: tache.PERIODE_EXECUTION?.DATE_FIN,
+      status: affectation.STATUS || 'En attente',
+      decision: affectation.DECISION || 'En Attente',
+      description: tache.DESCRIPTION || tache.description || 'Aucune description disponible',
+      direction: tache.DIRECTION || tache.direction || 'Non spécifiée',
+      specialty: tache.SPECIALITES_CONCERNEES?.[0] || tache.SPECIALITE || 'Non spécifiée',
+      grade: tache.GRADES_CONCERNES?.[0] || tache.GRADE || 'Non spécifié',
+      isRemunerated: tache.REMUNEREE || false,
+      remunerationAmount: tache.MONTANT || '0',
+      hasVehicle: tache.NECESSITE_VEHICULE || false,
+      dateAffectation: affectation.DATE_AFFECTATION ? new Date(affectation.DATE_AFFECTATION) : undefined,
+      isDelegation: !!affectation.ID_AUDITEUR_DELEGANT,
+      idAuditeurDelegant: affectation.ID_AUDITEUR_DELEGANT,
+      delaiRestant: affectation.DECISION === 'En Attente' && affectation.DATE_AFFECTATION 
+        ? calculerDelaiRestant(new Date(affectation.DATE_AFFECTATION))
+        : undefined
+    };
+  };
+
+  useEffect(() => {
+    fetchTasks();
+    fetchAuditeurs();
+    
+    const interval = setInterval(() => {
+      setTasks(prevTasks => 
+        prevTasks.map(task => ({
+          ...task,
+          delaiRestant: task.decision === 'En Attente' && task.dateAffectation
+            ? calculerDelaiRestant(task.dateAffectation)
+            : undefined
+        }))
+      );
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchAuditeurs = async () => {
+    try {
+      const response = await userAPI.getAll({ role: 'USER' });
+      setAuditeurs(response.data.data.users || response.data.data || []);
+    } catch (err) {
+      console.error('Erreur chargement auditeurs:', err);
+    }
+  };
+
   const fetchTasks = async () => {
     try {
       setLoading(true);
@@ -92,18 +154,14 @@ useEffect(() => {
       const tasksPromises = userAffectations.map(async (affectation: any) => {
         try {
           const taskResponse = await tacheAPI.getById(affectation.ID_TACHE);
-          return {
-            ...taskResponse.data,
-            STATUT: affectation.STATUS
-          };
+          return transformTaskData(taskResponse.data, affectation);
         } catch {
           return null;
         }
       });
 
       const tasksData = (await Promise.all(tasksPromises)).filter(Boolean);
-      console.log(tasksData)
-      setTasks(tasksData.map(transformTaskData));
+      setTasks(tasksData);
 
     } catch (err: any) {
       setError('Impossible de charger les tâches.');
@@ -112,18 +170,117 @@ useEffect(() => {
     }
   };
 
-  fetchTasks();
-}, []);
-
-
-  const fetchTaskDetails = async (taskId: string) => {
+  const handleAcceptTask = async (taskId?: string, isDelegation?: boolean) => {
+    if (!taskId) return;
+    
     try {
-      const response = await tacheAPI.getById(taskId);
-      const detailedTask = transformTaskData(response.data);
-      setSelectedTask(detailedTask);
+      const userDataString = localStorage.getItem('user');
+      if (!userDataString) return;
+      
+      const userData = JSON.parse(userDataString);
+      const userId = userData.ID || userData.id;
+
+      if (isDelegation) {
+        // CORRIGÉ: accepterDelegation prend (idAuditeur, idTache)
+        await affectationAPI.accepterDelegation(userId, taskId);
+        alert('✅ Délégation acceptée avec succès !');
+      } else {
+        // CORRIGÉ: accepterAffectation prend (idAuditeur, idTache)
+        await affectationAPI.accepterAffectation(userId, taskId);
+        alert('✅ Tâche acceptée avec succès !');
+      }
+      
+      await fetchTasks();
+      setSelectedTask(null);
     } catch (err: any) {
-      console.error('Erreur lors de la récupération des détails:', err);
-      alert('Impossible de charger les détails de la tâche.');
+      console.error('Erreur acceptation:', err);
+      alert('❌ Erreur lors de l\'acceptation.');
+    }
+  };
+
+  const handleRejectTask = (taskId?: string) => {
+    if (!taskId) return;
+    setShowRejectModal(true);
+  };
+
+  const confirmReject = async () => {
+    if (!selectedTask) return;
+
+    if (!justificatif || justificatif.trim().length < 10) {
+      alert('⚠️ Le justificatif doit contenir au moins 10 caractères.');
+      return;
+    }
+
+    try {
+      const userDataString = localStorage.getItem('user');
+      if (!userDataString) return;
+      
+      const userData = JSON.parse(userDataString);
+      const userId = userData.ID || userData.id;
+
+      if (selectedTask.isDelegation) {
+        // CORRIGÉ: refuserDelegation prend (idAuditeur, idTache) et le justificatif est dans le body
+        await affectationAPI.refuserDelegation(userId, selectedTask.id);
+        alert('❌ Délégation refusée. La tâche est considérée comme refusée par l\'auditeur initial.');
+      } else {
+        // CORRIGÉ: refuserAffectation prend (idAuditeur, idTache, justificatif)
+        await affectationAPI.refuserAffectation(userId, selectedTask.id, justificatif);
+        alert('❌ Tâche refusée.');
+      }
+
+      setShowRejectModal(false);
+      setJustificatif('');
+      await fetchTasks();
+      setSelectedTask(null);
+    } catch (err: any) {
+      console.error('Erreur refus:', err);
+      alert('❌ Erreur lors du refus.');
+    }
+  };
+
+  const handleDelegateTask = (taskId?: string) => {
+    if (!taskId) {
+      alert('⚠️ Veuillez sélectionner une tâche.');
+      return;
+    }
+    setShowDelegateModal(true);
+  };
+
+  const confirmDelegate = async () => {
+    if (!selectedTask || !selectedAuditeur) {
+      alert('⚠️ Veuillez sélectionner un auditeur.');
+      return;
+    }
+
+    if (!justificatif || justificatif.trim().length < 10) {
+      alert('⚠️ Le justificatif doit contenir au moins 10 caractères.');
+      return;
+    }
+
+    try {
+      const userDataString = localStorage.getItem('user');
+      if (!userDataString) return;
+      
+      const userData = JSON.parse(userDataString);
+      const userId = userData.ID || userData.id;
+
+      // CORRIGÉ: deleguerAffectation prend (idAuditeur, idTache, idAuditeurDelegue, justificatif)
+      await affectationAPI.deleguerAffectation(
+        userId, 
+        selectedTask.id, 
+        selectedAuditeur,
+        justificatif
+      );
+      
+      alert('✅ Tâche déléguée avec succès ! L\'auditeur a 24h pour répondre.');
+      setShowDelegateModal(false);
+      setSelectedAuditeur('');
+      setJustificatif('');
+      await fetchTasks();
+      setSelectedTask(null);
+    } catch (err: any) {
+      console.error('Erreur délégation:', err);
+      alert('❌ Erreur lors de la délégation.');
     }
   };
 
@@ -137,12 +294,25 @@ useEffect(() => {
     return badges[status as keyof typeof badges] || 'bg-gray-100 text-gray-800';
   };
 
+  const getDecisionBadge = (decision: string) => {
+    const badges = {
+      'Acceptée': 'bg-green-100 text-green-800',
+      'Refusée': 'bg-red-100 text-red-800',
+      'Déléguée': 'bg-purple-100 text-purple-800',
+      'En Attente': 'bg-yellow-100 text-yellow-800'
+    };
+    return badges[decision as keyof typeof badges] || 'bg-gray-100 text-gray-800';
+  };
+
   const handleViewDetails = (task: MyTask) => {
-    fetchTaskDetails(task.id);
+    setSelectedTask(task);
   };
 
   const handleCloseDetails = () => {
     setSelectedTask(null);
+    setShowRejectModal(false);
+    setShowDelegateModal(false);
+    setJustificatif('');
   };
 
   const filteredTasks = tasks.filter(task => {
@@ -151,6 +321,11 @@ useEffect(() => {
     const matchesStatus = filterStatus === '' || task.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
+
+  const statsAcceptees = tasks.filter(t => t.decision === 'Acceptée').length;
+  const statsEnAttente = tasks.filter(t => t.decision === 'En Attente').length;
+  const statsRefusees = tasks.filter(t => t.decision === 'Refusée').length;
+  const statsDelegues = tasks.filter(t => t.decision === 'Déléguée').length;
 
   if (loading) {
     return (
@@ -192,26 +367,20 @@ useEffect(() => {
           <h1 className="text-3xl font-bold text-gray-800 mb-4">Mes tâches assignées</h1>
           <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white rounded-lg shadow-md p-4">
-              <div className="text-sm text-gray-600">Total tâches</div>
-              <div className="text-2xl font-bold text-gray-900">{tasks.length}</div>
-            </div>
-            <div className="bg-white rounded-lg shadow-md p-4">
-              <div className="text-sm text-gray-600">Affectées</div>
-              <div className="text-2xl font-bold text-green-600">
-                {tasks.filter(t => t.status === 'Affectée').length}
-              </div>
+              <div className="text-sm text-gray-600">Acceptées</div>
+              <div className="text-2xl font-bold text-green-600">{statsAcceptees}</div>
             </div>
             <div className="bg-white rounded-lg shadow-md p-4">
               <div className="text-sm text-gray-600">En attente</div>
-              <div className="text-2xl font-bold text-yellow-600">
-                {tasks.filter(t => t.status === 'En attente').length}
-              </div>
+              <div className="text-2xl font-bold text-yellow-600">{statsEnAttente}</div>
             </div>
             <div className="bg-white rounded-lg shadow-md p-4">
-              <div className="text-sm text-gray-600">Terminées</div>
-              <div className="text-2xl font-bold text-gray-600">
-                {tasks.filter(t => t.status === 'Terminée').length}
-              </div>
+              <div className="text-sm text-gray-600">Refusées</div>
+              <div className="text-2xl font-bold text-red-600">{statsRefusees}</div>
+            </div>
+            <div className="bg-white rounded-lg shadow-md p-4">
+              <div className="text-sm text-gray-600">Déléguées</div>
+              <div className="text-2xl font-bold text-purple-600">{statsDelegues}</div>
             </div>
           </div>
           <br />
@@ -236,6 +405,27 @@ useEffect(() => {
               <option value="Créée">Créée</option>
               <option value="Terminée">Terminée</option>
             </select>
+            <button 
+              onClick={() => handleAcceptTask(selectedTask?.id, selectedTask?.isDelegation)}
+              disabled={!selectedTask || selectedTask.decision !== 'En Attente'}
+              className="px-6 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Accepter
+            </button>
+            <button 
+              onClick={() => handleRejectTask(selectedTask?.id)}
+              disabled={!selectedTask || selectedTask.decision !== 'En Attente'}
+              className="px-6 py-2 bg-red-600 text-white font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Refuser
+            </button>
+            <button 
+              onClick={() => handleDelegateTask(selectedTask?.id)}
+              disabled={!selectedTask || selectedTask.decision !== 'En Attente' || selectedTask.isDelegation}
+              className="px-6 py-2 bg-yellow-600 text-white font-medium rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Déléguer
+            </button>
           </div>
         </div>
 
@@ -248,39 +438,59 @@ useEffect(() => {
                     Nom de la tâche
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
-                    Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
                     Période
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
-                    Statut
+                    Décision
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
-                    Actions
+                    Délai
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
+                    
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredTasks.map((task, index) => (
-                  <tr key={`${task.id}-${index}`} className="hover:bg-gray-50 transition-colors">
+                  <tr 
+                    key={`${task.id}-${index}`} 
+                    className={`hover:bg-gray-50 transition-colors ${selectedTask?.id === task.id ? 'bg-blue-50' : ''}`}
+                    onClick={() => setSelectedTask(task)}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <strong className="text-gray-900">{task.taskName}</strong>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-gray-700">
-                      {task.type}
+                      {task.isDelegation && (
+                        <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
+                          Délégation
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-gray-700">
                       {task.period}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(task.status)}`}>
-                        {task.status}
+                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getDecisionBadge(task.decision)}`}>
+                        {task.decision}
                       </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">
+                      {task.delaiRestant && (
+                        <span className={`font-medium ${
+                          task.delaiRestant === 'Délai dépassé' 
+                            ? 'text-red-600' 
+                            : 'text-orange-600'
+                        }`}>
+                          ⏰ {task.delaiRestant}
+                        </span>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <button
-                        onClick={() => handleViewDetails(task)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewDetails(task);
+                        }}
                         className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
                       >
                         Voir détails
@@ -300,7 +510,8 @@ useEffect(() => {
         </div>
       </div>
 
-      {selectedTask && (
+      {/* Modal de détails */}
+      {selectedTask && !showRejectModal && !showDelegateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={handleCloseDetails}>
           <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
@@ -314,11 +525,49 @@ useEffect(() => {
             </div>
 
             <div className="p-6 space-y-6">
-              <div>
+              <div className="flex gap-2 flex-wrap">
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(selectedTask.status)}`}>
                   {selectedTask.status}
                 </span>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getDecisionBadge(selectedTask.decision)}`}>
+                  {selectedTask.decision}
+                </span>
+                {selectedTask.isDelegation && (
+                  <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm font-medium">
+                    Délégation
+                  </span>
+                )}
               </div>
+
+              {selectedTask.delaiRestant && (
+                <div className={`p-4 rounded-lg ${
+                  selectedTask.delaiRestant === 'Délai dépassé' 
+                    ? 'bg-red-50 border border-red-200' 
+                    : 'bg-orange-50 border border-orange-200'
+                }`}>
+                  <div className="flex items-center">
+                    <span className="text-2xl mr-2">⏰</span>
+                    <div>
+                      <p className={`font-semibold ${
+                        selectedTask.delaiRestant === 'Délai dépassé' 
+                          ? 'text-red-900' 
+                          : 'text-orange-900'
+                      }`}>
+                        {selectedTask.delaiRestant}
+                      </p>
+                      <p className={`text-sm ${
+                        selectedTask.delaiRestant === 'Délai dépassé' 
+                          ? 'text-red-700' 
+                          : 'text-orange-700'
+                      }`}>
+                        {selectedTask.delaiRestant === 'Délai dépassé'
+                          ? 'La tâche sera acceptée automatiquement'
+                          : 'pour répondre à cette ' + (selectedTask.isDelegation ? 'délégation' : 'affectation')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Description</h3>
@@ -380,7 +629,7 @@ useEffect(() => {
                 <div>
                   <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Véhicule</h3>
                   <p className="text-gray-700 font-medium">
-                    {selectedTask.hasVehicle ? '✔ Véhicule fourni' : '✗ Pas de véhicule'}
+                    {selectedTask.hasVehicle ? '✓ Véhicule fourni' : '✗ Pas de véhicule'}
                   </p>
                 </div>
               </div>
@@ -402,14 +651,136 @@ useEffect(() => {
               >
                 Fermer
               </button>
-              {selectedTask.status === 'En attente' && (
-                <button
-                  className="px-6 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
-                  onClick={() => alert('Tâche acceptée !')}
-                >
-                  ✓ Accepter la tâche
-                </button>
+              {selectedTask.decision === 'En Attente' && (
+                <>
+                  <button
+                    onClick={() => handleAcceptTask(selectedTask.id, selectedTask.isDelegation)}
+                    className="px-6 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
+                  >
+                    ✓ Accepter
+                  </button>
+                  <button
+                    onClick={() => handleRejectTask(selectedTask.id)}
+                    className="px-6 py-2 bg-red-600 text-white font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+                  >
+                    ✗ Refuser
+                  </button>
+                  {!selectedTask.isDelegation && (
+                    <button
+                      onClick={() => handleDelegateTask(selectedTask.id)}
+                      className="px-6 py-2 bg-yellow-600 text-white font-medium rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors"
+                    >
+                      ⇄ Déléguer
+                    </button>
+                  )}
+                </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de refus */}
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-xl font-bold text-gray-900">Refuser la tâche</h3>
+            </div>
+            
+            <div className="p-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Justificatif (minimum 10 caractères)
+              </label>
+              <textarea
+                className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={4}
+                value={justificatif}
+                onChange={(e) => setJustificatif(e.target.value)}
+                placeholder="Expliquez pourquoi vous refusez cette tâche..."
+              />
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowRejectModal(false);
+                  setJustificatif('');
+                }}
+                className="px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmReject}
+                className="px-6 py-2 bg-red-600 text-white font-medium rounded-md hover:bg-red-700"
+              >
+                Confirmer le refus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de délégation */}
+      {showDelegateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-xl font-bold text-gray-900">Déléguer la tâche</h3>
+            </div>
+            
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Sélectionner un auditeur
+                </label>
+                <select
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={selectedAuditeur}
+                  onChange={(e) => setSelectedAuditeur(e.target.value)}
+                >
+                  <option value="">-- Choisir un auditeur --</option>
+                  {auditeurs.map((auditeur) => (
+                    <option key={auditeur.ID} value={auditeur.ID}>
+                      {auditeur.NOM} {auditeur.PRENOM} - {auditeur.SPECIALITE}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Justificatif (minimum 10 caractères)
+                </label>
+                <textarea
+                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  rows={4}
+                  value={justificatif}
+                  onChange={(e) => setJustificatif(e.target.value)}
+                  placeholder="Expliquez pourquoi vous déléguez cette tâche..."
+                />
+              </div>
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowDelegateModal(false);
+                  setSelectedAuditeur('');
+                  setJustificatif('');
+                }}
+                className="px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmDelegate}
+                disabled={!selectedAuditeur}
+                className="px-6 py-2 bg-yellow-600 text-white font-medium rounded-md hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Confirmer la délégation
+              </button>
             </div>
           </div>
         </div>

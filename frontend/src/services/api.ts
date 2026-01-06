@@ -162,6 +162,49 @@ export const affectationAPI = {
    */
   cancelSemiAuto: (idAffectation: string) =>
     api.delete(`/affectation/semi-auto/cancel/${idAffectation}`),
+  /**
+   * Mettre à jour la décision d'une affectation par son ID
+   */
+
+  accepterAffectation: (idAuditeur: string, idTache: string) =>
+  api.put(`/affectation/accepter/${idAuditeur}/${idTache}`),
+ 
+  refuserAffectation: (
+    idAuditeur: string,
+    idTache: string,
+    justificatif: string
+  ) =>
+    api.put(`/affectation/refuser/${idAuditeur}/${idTache}`, {
+      justificatif
+    }),
+
+  /**
+   * Accepter une délégation
+   */
+  accepterDelegation: (idAuditeur: string, idTache: string) =>
+    api.put(`/affectation/delegation/accepter/${idAuditeur}/${idTache}`),
+
+  /**
+   * Refuser une délégation
+   */
+  refuserDelegation: (idAuditeur: string, idTache: string) =>
+    api.put(`/affectation/delegation/refuser/${idAuditeur}/${idTache}`),
+
+  /**
+   * Déléguer une affectation
+   */
+  deleguerAffectation: (
+    idAuditeur: string,
+    idTache: string,
+    idAuditeurDelegue: string | string[],
+    justificatif?: string
+  ) =>
+    api.put(`/affectation/deleguer/${idAuditeur}/${idTache}`, {
+      decision: 'Déléguée',
+      idAuditeurDelegue,
+      justificatif
+    }),
+
 };
 
 // Chat - Messages par tâche

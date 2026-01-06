@@ -1,4 +1,7 @@
 // affectationSemiAutoController.js
+import path from 'path';
+import fs from 'fs';
+import { jsPDF } from 'jspdf';
 import Affectation from '../models/Affectation.js';
 import Tache from '../models/Tache.js';
 import User from '../models/User.js';
@@ -81,7 +84,7 @@ const getNombreTachesRemunerees = async (auditeurId) => {
 };
 
 /**
- * Génère le rapport détaillé de l'algorithme
+ * Génère le rapport détaillé de l'algorithme (texte)
  */
 const genererRapportAlgorithme = (tache, auditeurs, vehicules, details) => {
   let rapport = `=== RAPPORT D'AFFECTATION SEMI-AUTOMATIQUE ===\n\n`;
@@ -126,10 +129,58 @@ const genererRapportAlgorithme = (tache, auditeurs, vehicules, details) => {
 };
 
 /**
+ * Génère le PDF du rapport et retourne les métadonnées
+ */
+const genererPDFRapport = (contenu, idTache) => {
+  const pdf = new jsPDF('p', 'mm', 'a4');
+
+  const margeX = 15;
+  let y = 20;
+  const lineHeight = 7;
+
+  pdf.setFont('Times', 'Normal');
+  pdf.setFontSize(11);
+
+  const lignes = pdf.splitTextToSize(contenu, 180);
+
+  lignes.forEach((ligne) => {
+    if (y > 280) {
+      pdf.addPage();
+      y = 20;
+    }
+    pdf.text(ligne, margeX, y);
+    y += lineHeight;
+  });
+
+  // Créer le dossier uploads/rapports s'il n'existe pas
+  const uploadDir = path.join(process.cwd(), 'uploads', 'rapports');
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+
+  // Générer le nom de fichier unique
+  const fileName = `rapport_semi_auto_${idTache}_${Date.now()}.pdf`;
+  const filePath = path.join(uploadDir, fileName);
+
+  // Sauvegarder le PDF
+  const pdfBuffer = pdf.output('arraybuffer');
+  fs.writeFileSync(filePath, Buffer.from(pdfBuffer));
+
+  // Retourner les métadonnées
+  return {
+    fileName: fileName,
+    filePath: `/uploads/rapports/${fileName}`,
+    mimeType: 'application/pdf',
+    size: fs.statSync(filePath).size,
+    createdAt: new Date()
+  };
+};
+
+/**
  * Algorithme d'affectation semi-automatique
  */
 export const genererAffectationSemiAutomatique = async (req, res) => {
-    console.log('BODY REÇU:', req.body);
+  console.log('BODY REÇU:', req.body);
   try {
     const { idTache } = req.body;
     
@@ -149,7 +200,7 @@ export const genererAffectationSemiAutomatique = async (req, res) => {
     }
     
     // Récupérer tous les auditeurs actifs
-    let auditeurs = await User.find({ ACTIF: true }).sort({ createdAt: 1 }); // Tri par ancienneté
+    let auditeurs = await User.find({ ACTIF: true }).sort({ createdAt: 1 });
     console.log(auditeurs);
     
     const details = {
@@ -170,9 +221,9 @@ export const genererAffectationSemiAutomatique = async (req, res) => {
     
     // Filtrer par compatibilité de grade
     if (tache.GRADES_CONCERNES && tache.GRADES_CONCERNES.length > 0) {
-        auditeurs = auditeurs.filter(a => 
-            tache.GRADES_CONCERNES.includes(a.GRADE)
-        );
+      auditeurs = auditeurs.filter(a => 
+        tache.GRADES_CONCERNES.includes(a.GRADE)
+      );
     }
     
     // Évaluer chaque auditeur avec un système de score
@@ -181,14 +232,14 @@ export const genererAffectationSemiAutomatique = async (req, res) => {
         const disponible = await checkAuditeurDisponibilite(auditeur.ID, tache);
         const tachesRemunerees = await getNombreTachesRemunerees(auditeur.ID);
         
-        // Calcul du score (plus le score est élevé, plus l'auditeur est prioritaire)
+        // Calcul du score
         let score = 0;
         
-        // Ancienneté (plus ancien = plus prioritaire)
+        // Ancienneté
         const anciennete = new Date() - new Date(auditeur.createdAt);
-        score += anciennete / (1000 * 60 * 60 * 24); // Convertir en jours
+        score += anciennete / (1000 * 60 * 60 * 24);
         
-        // Équité rémunération (moins de tâches rémunérées = plus prioritaire)
+        // Équité rémunération
         score += (1000 - tachesRemunerees * 100);
         
         details.auditeurs[auditeur.ID] = {
@@ -203,14 +254,14 @@ export const genererAffectationSemiAutomatique = async (req, res) => {
           tachesRemunerees,
           disponible
         };
-    })
-);
+      })
+    );
 
-// Filtrer les auditeurs disponibles
-const auditeursDisponibles = auditeursAvecScore.filter(a => a.disponible);
-details.candidatsDisponibles = auditeursDisponibles.length;
+    // Filtrer les auditeurs disponibles
+    const auditeursDisponibles = auditeursAvecScore.filter(a => a.disponible);
+    details.candidatsDisponibles = auditeursDisponibles.length;
 
-console.log('213', details.candidatsDisponibles);
+    console.log('213', details.candidatsDisponibles);
     if (auditeursDisponibles.length === 0) {
       return res.status(400).json({ 
         message: "Aucun auditeur disponible pour cette tâche",
@@ -257,15 +308,15 @@ console.log('213', details.candidatsDisponibles);
       }
     }
     
-    // Générer le rapport
-    const rapport = genererRapportAlgorithme(
+    // Générer le rapport texte
+    const rapportTexte = genererRapportAlgorithme(
       tache, 
       auditeursSelectionnes, 
       vehiculesSelectionnes,
       details
     );
     
-    // Retourner la proposition d'affectation
+    // Retourner la proposition d'affectation (sans créer l'affectation encore)
     res.json({
       success: true,
       proposition: {
@@ -289,7 +340,7 @@ console.log('213', details.candidatsDisponibles);
           immatriculation: v.IMMATRICULATION,
           capacite: v.CAPACITE
         })),
-        rapport,
+        rapport: rapportTexte,
         details
       }
     });
@@ -315,7 +366,10 @@ export const confirmerAffectationSemiAutomatique = async (req, res) => {
       });
     }
     
-    // Créer l'affectation
+    // Générer le PDF du rapport
+    const rapportMetadata = genererPDFRapport(rapport, idTache);
+    
+    // Créer l'affectation avec les métadonnées du rapport
     const nouvelleAffectation = new Affectation({
       ID: `AFF-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
       ID_TACHE: idTache,
@@ -323,13 +377,14 @@ export const confirmerAffectationSemiAutomatique = async (req, res) => {
       ID_VEHICULE: vehiculesIds || [],
       DATE_AFFECTATION: new Date(),
       MODE_AFFECTATION: "Semi-automatisé",
+      RAPPORT: rapportMetadata, // Métadonnées du PDF
       STATUS: "À venir",
       DECISION: "En Attente"
     });
     
     await nouvelleAffectation.save();
     
-    // Créer l'entrée historique avec le rapport
+    // Créer l'entrée historique avec le rapport texte
     const historique = new Historique({
       ID: `HIST-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
       ID_AUDITEUR: auditeursIds,
@@ -358,6 +413,7 @@ export const confirmerAffectationSemiAutomatique = async (req, res) => {
       success: true,
       message: "Affectation semi-automatique confirmée avec succès",
       affectation: nouvelleAffectation,
+      rapport: rapportMetadata,
       historiqueId: historique.ID,
       notificationsCreees: auditeursIds.length
     });
@@ -381,10 +437,18 @@ export const annulerAffectationSemiAutomatique = async (req, res) => {
     }
     
     // Vérifier que c'est bien une affectation semi-automatique
-    if (affectation.MODE_AFFECTATION !== "Semi-automatique") {
+    if (affectation.MODE_AFFECTATION !== "Semi-automatisé") {
       return res.status(400).json({ 
         message: "Cette affectation n'est pas de type semi-automatique" 
       });
+    }
+    
+    // Supprimer le fichier PDF si existant
+    if (affectation.RAPPORT && affectation.RAPPORT.fileName) {
+      const filePath = path.join(process.cwd(), 'uploads', 'rapports', affectation.RAPPORT.fileName);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
     }
     
     // Supprimer l'affectation

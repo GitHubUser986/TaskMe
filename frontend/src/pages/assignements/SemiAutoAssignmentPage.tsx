@@ -480,35 +480,35 @@ const chargerTaches = async () => {
                 Auditeurs sélectionnés ({proposition.auditeurs.length})
               </h3>
               <div className="space-y-3">
-                {proposition.auditeurs.map((auditeur, index) => (
-                  <div key={auditeur.id} className="border border-gray-200 rounded-lg p-4 hover:border-green-300 transition-colors">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center mb-2">
-                          <span className="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded mr-2">
-                            #{index + 1}
-                          </span>
-                          <p className="font-semibold text-gray-800">{auditeur.nom}</p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 text-sm">
-                          <p className="text-gray-600">
-                            <span className="font-medium">Spécialité:</span> {auditeur.specialite}
-                          </p>
-                          <p className="text-gray-600">
-                            <span className="font-medium">Grade:</span> {auditeur.grade}
-                          </p>
-                          <p className="text-gray-600">
-                            <span className="font-medium">Tâches rémunérées:</span> {auditeur.tachesRemunerees}
-                          </p>
-                          <p className="text-gray-600">
-                            <span className="font-medium">Score:</span> {auditeur.score.toFixed(1)}
-                          </p>
-                        </div>
+              {proposition.auditeurs.map((auditeur, index) => (
+                <div key={auditeur.id} className="border border-gray-200 rounded-lg p-4 hover:border-green-300 transition-colors">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center mb-2">
+                        <span className="bg-green-100 text-green-800 text-xs font-semibold px-2 py-1 rounded mr-2">
+                          #{index + 1}
+                        </span>
+                        <p className="font-semibold text-gray-800">{auditeur.nom}</p>
                       </div>
-                      <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <p className="text-gray-600">
+                          <span className="font-medium">Spécialité:</span> {auditeur.specialite}
+                        </p>
+                        <p className="text-gray-600">
+                          <span className="font-medium">Grade:</span> {auditeur.grade}
+                        </p>
+                        <p className="text-gray-600">
+                          <span className="font-medium">Tâches rémunérées:</span> {auditeur.tachesRemunerees || 0}
+                        </p>
+                        <p className="text-gray-600">
+                          <span className="font-medium">Score:</span> {auditeur.score ? auditeur.score.toFixed(1) : '0.0'}
+                        </p>
+                      </div>
                     </div>
+                    <CheckCircle className="w-6 h-6 text-green-500 flex-shrink-0" />
                   </div>
-                ))}
+                </div>
+              ))}
               </div>
             </div>
 

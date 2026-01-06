@@ -53,7 +53,20 @@ const IndividualHistory: React.FC = () => {
       // Récupérer l'historique de l'utilisateur depuis le backend
       const response = await historiqueAPI.getByUser(user.ID, filters);
       
-      console.log('Historique reçu:', response.data);
+      const calculerHeures = (dateDebut?: string, dateFin?: string): number => {
+        if (!dateDebut || !dateFin) return 0;
+
+        const debut = new Date(dateDebut).getTime();
+        const fin = new Date(dateFin).getTime();
+
+        if (isNaN(debut) || isNaN(fin) || fin < debut) return 0;
+
+        const diffMs = fin - debut;
+        const diffHeures = diffMs / (1000 * 60 * 60);
+
+        return Math.round(diffHeures * 100) / 100; // 2 décimales
+      };
+
 
       // Transformer les données pour le format attendu
       const formattedHistory = response.data.map((item: any) => ({
@@ -63,7 +76,7 @@ const IndividualHistory: React.FC = () => {
         status: item.STATUT || 'N/A',
         details: item.DETAILS || item.RAPPORT || '-',
         type: item.ALGORITHME  || 'Affectation',
-        heures: item.HEURES_ESTIMEES || 0,
+        heures: calculerHeures(item.DATE_DEBUT, item.DATE_FIN),
         dateDebut: item.DATE_DEBUT,
         dateFin: item.DATE_FIN
       }));
@@ -267,7 +280,7 @@ const IndividualHistory: React.FC = () => {
                     Statut
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
-                    Type
+                    Mode d'affectation
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
                     Heures

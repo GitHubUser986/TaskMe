@@ -52,6 +52,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/notification", notificationRoutes);
 app.use("/api/historique", historiqueRoutes);
 app.use("/api/dashboard", dashboardRoutes);
+app.use('/uploads', express.static('uploads'));
 
 // Route de base (test)
 app.get("/", (req, res) => {

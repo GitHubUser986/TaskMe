@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { historiqueAPI } from '../../services/api';
+import { FileText, Download, ExternalLink } from 'lucide-react';
+import { historiqueAPI, affectationAPI } from '../../services/api';
 
 interface GlobalHistoryItem {
   id: string;
+  idTache?: string;
   userName: string;
   taskName: string;
   date: string;
@@ -11,6 +13,14 @@ interface GlobalHistoryItem {
   details?: string;
   rapport?: string;
   algorithme?: string;
+}
+
+interface RapportPDF {
+  fileName: string;
+  filePath: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
 }
 
 const GlobalHistory: React.FC = () => {
@@ -31,8 +41,9 @@ const GlobalHistory: React.FC = () => {
     refus: 0,
     delegations: 0
   });
+  const [rapportsMap, setRapportsMap] = useState<Map<string, RapportPDF>>(new Map());
 
-  // Charger l'historique global
+  // Charger l'historique global et les rapports PDF
   const loadHistory = async () => {
     try {
       setLoading(true);
@@ -41,16 +52,16 @@ const GlobalHistory: React.FC = () => {
       // Récupérer l'historique avec filtres
       const response = await historiqueAPI.getAll(filters);
       
-      console.log('Réponse API:', response);
-      
-      // Extraire les données selon le format de réponse
       const historyData = response.data?.success 
         ? response.data.data 
         : response.data;
       
-      console.log('Historique reçu:', historyData);
+      console.log('📋 Historique reçu:', historyData);
       
       setHistory(Array.isArray(historyData) ? historyData : []);
+      
+      // Charger les rapports PDF pour chaque tâche
+      await loadRapportsPDF();
       
       // Calculer les statistiques
       const data = Array.isArray(historyData) ? historyData : [];
@@ -67,11 +78,40 @@ const GlobalHistory: React.FC = () => {
       });
 
     } catch (err: any) {
-      console.error('Erreur lors du chargement de l\'historique global:', err);
+      console.error('❌ Erreur lors du chargement de l\'historique global:', err);
       setError(err.response?.data?.message || 'Erreur lors du chargement de l\'historique');
       setHistory([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Charger les rapports PDF depuis les affectations
+  const loadRapportsPDF = async () => {
+    try {
+      const affectationsResponse = await affectationAPI.getAll();
+      const affectations = affectationsResponse.data;
+
+      console.log('📄 Affectations récupérées:', affectations.length);
+
+      const newRapportsMap = new Map<string, RapportPDF>();
+      
+      affectations.forEach((affectation: any) => {
+        if (affectation.RAPPORT && affectation.RAPPORT.filePath) {
+          const idTache = affectation.ID_TACHE;
+          
+          if (idTache) {
+            newRapportsMap.set(idTache, affectation.RAPPORT);
+            console.log(`✅ Rapport associé à la tâche: ${idTache}`);
+          }
+        }
+      });
+
+      setRapportsMap(newRapportsMap);
+      console.log(`📊 Total rapports chargés: ${newRapportsMap.size}`);
+      console.log('🔑 IDs de tâches avec rapport:', Array.from(newRapportsMap.keys()));
+    } catch (err) {
+      console.error('❌ Erreur lors du chargement des rapports PDF:', err);
     }
   };
 
@@ -81,11 +121,10 @@ const GlobalHistory: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     const badges: { [key: string]: string } = {
-      'Affectée': 'bg-green-100 text-green-800',
-      'En attente': 'bg-yellow-100 text-yellow-800',
-      'Créée': 'bg-blue-100 text-blue-800',
-      'Terminée': 'bg-gray-100 text-gray-800',
-      'En cours': 'bg-purple-100 text-purple-800',
+      'Acceptée': 'bg-green-100 text-green-800',
+      'En Attente': 'bg-yellow-100 text-yellow-800',
+      'Refusée': 'bg-red-100 text-red-800',
+      'Déléguée': 'bg-purple-100 text-purple-800',
       'N/A': 'bg-gray-100 text-gray-600'
     };
     return badges[status] || 'bg-gray-100 text-gray-800';
@@ -93,13 +132,9 @@ const GlobalHistory: React.FC = () => {
 
   const getTypeBadge = (type: string) => {
     const badges: { [key: string]: string } = {
-      'Affectation': 'bg-blue-100 text-blue-800',
-      'Refus': 'bg-red-100 text-red-800',
-      'Délégation': 'bg-purple-100 text-purple-800',
-      'Algorithme': 'bg-indigo-100 text-indigo-800',
-      'Création': 'bg-teal-100 text-teal-800',
-      'Modification': 'bg-orange-100 text-orange-800',
-      'Validation': 'bg-green-100 text-green-800'
+      'Manuel': 'bg-blue-100 text-blue-800',
+      'Semi-automatisé': 'bg-purple-200 text-purple-800',
+      'Automatisé': 'bg-green-100 text-green-800'
     };
     return badges[type] || 'bg-gray-100 text-gray-800';
   };
@@ -116,6 +151,41 @@ const GlobalHistory: React.FC = () => {
       status: '', 
       type: '' 
     });
+  };
+
+  const openPDF = (filePath: string) => {
+    const baseURL = 'http://localhost:5000';
+    const fullURL = `${baseURL}${filePath}`;
+    window.open(fullURL, '_blank');
+  };
+
+  const downloadPDF = (filePath: string, fileName: string) => {
+    const baseURL = 'http://localhost:5000';
+    const fullURL = `${baseURL}${filePath}`;
+    
+    const link = document.createElement('a');
+    link.href = fullURL;
+    link.download = fileName;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const getRapportForItem = (item: GlobalHistoryItem): RapportPDF | null => {
+    if (!item.idTache) {
+      return null;
+    }
+
+    const rapport = rapportsMap.get(item.idTache);
+    
+    if (rapport) {
+      console.log(`✅ Rapport trouvé pour ${item.taskName} (${item.idTache})`);
+    } else {
+      console.log(`❌ Aucun rapport pour ${item.taskName} (${item.idTache})`);
+    }
+    
+    return rapport || null;
   };
 
   const exportToCSV = () => {
@@ -220,12 +290,11 @@ const GlobalHistory: React.FC = () => {
                 onChange={(e) => handleFilterChange('status', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
-                <option value="">Tous</option>
-                <option value="Créée">Créée</option>
-                <option value="Affectée">Affectée</option>
-                <option value="En attente">En attente</option>
-                <option value="En cours">En cours</option>
-                <option value="Terminée">Terminée</option>
+               <option value="">Tous</option>
+                <option value="En Attente">En Attente</option>
+                <option value="Acceptée">Acceptée</option>
+                <option value="Refusée">Réfusée</option>
+                <option value="Déléguée">Déléguée</option>
               </select>
             </div>
             <div>
@@ -252,7 +321,7 @@ const GlobalHistory: React.FC = () => {
               onClick={resetFilters}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
             >
-              🔄 Réinitialiser les filtres
+              🔄 Réinitialiser
             </button>
           </div>
         </div>
@@ -287,67 +356,74 @@ const GlobalHistory: React.FC = () => {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Utilisateur
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
                     Tâche
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
                     Date
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
                     Statut
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Type
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
+                    Mode d'affectation
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Détails
+                  <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
+                    Rapport PDF
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {history.map((item, index) => (
-                  <tr key={`${item.id}-${index}`} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 text-gray-900">{item.userName}</td>
-                    <td className="px-6 py-4 text-gray-900">{item.taskName}</td>
-                    <td className="px-6 py-4 text-gray-700">
-                      {new Date(item.date).toLocaleDateString('fr-FR', {
-                        day: '2-digit',
-                        month: '2-digit',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(item.status)}`}>
-                        {item.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-3 py-1 rounded-full text-sm font-medium ${getTypeBadge(item.type)}`}>
-                        {item.type}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-gray-700 max-w-xs">
-                      <div className="space-y-1">
-                        {item.algorithme && (
-                          <div className="text-xs">
-                            <span className="font-medium">Algo:</span> {item.algorithme}
+                {history.map((item, index) => {
+                  const rapport = getRapportForItem(item);
+                  
+                  return (
+                    <tr key={`${item.id}-${index}`} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 text-gray-900">{item.taskName}</td>
+                      <td className="px-6 py-4 text-gray-700">
+                        {new Date(item.date).toLocaleDateString('fr-FR', {
+                          day: '2-digit',
+                          month: '2-digit',
+                          year: 'numeric'
+                        })}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(item.status)}`}>
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getTypeBadge(item.type)}`}>
+                          {item.type}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {rapport ? (
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => openPDF(rapport.filePath)}
+                              className="flex items-center space-x-1 px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors text-sm"
+                              title="Ouvrir le PDF"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                              <span>Ouvrir</span>
+                            </button>
+                            <button
+                              onClick={() => downloadPDF(rapport.filePath, rapport.fileName)}
+                              className="flex items-center space-x-1 px-3 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg transition-colors text-sm"
+                              title="Télécharger le PDF"
+                            >
+                              <Download className="w-4 h-4" />
+                              <span>Télécharger</span>
+                            </button>
                           </div>
+                        ) : (
+                          <span className="text-gray-400 text-sm">Aucun rapport</span>
                         )}
-                        {(item.details || item.rapport) && (
-                          <div className="text-xs truncate">
-                            <span className="font-medium">Info:</span> {item.details || item.rapport}
-                          </div>
-                        )}
-                        {!item.algorithme && !item.details && !item.rapport && '-'}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

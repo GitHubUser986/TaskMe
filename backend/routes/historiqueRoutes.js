@@ -82,6 +82,7 @@ router.get('/global', async (req, res) => {
           const tache = await Tache.findOne({ ID: hist.ID_TACHE });
           return {
             id: hist.ID,
+            idTache: hist.ID_TACHE, // AJOUT IMPORTANT
             userName: 'Système',
             taskName: tache?.NOM || 'Tâche inconnue',
             date: hist.createdAt || new Date(),
@@ -95,6 +96,7 @@ router.get('/global', async (req, res) => {
           console.error('Erreur enrichissement:', err);
           return {
             id: hist.ID,
+            idTache: hist.ID_TACHE, // AJOUT IMPORTANT
             userName: 'Système',
             taskName: 'Erreur',
             date: hist.createdAt || new Date(),
@@ -162,6 +164,7 @@ router.get('/', async (req, res) => {
 
           return {
             id: hist.ID,
+            idTache: hist.ID_TACHE, // AJOUT IMPORTANT
             userName,
             taskName: tache?.NOM || 'Tâche inconnue',
             date: hist.createdAt || new Date(),
@@ -195,12 +198,13 @@ router.get('/', async (req, res) => {
 
           return {
             id: aff.ID || `AFF_${aff._id}`,
+            idTache: aff.ID_TACHE, // AJOUT IMPORTANT - LA CLÉ PRINCIPALE !
             userName,
             taskName: tache?.NOM || 'Tâche inconnue',
             date: aff.DATE_AFFECTATION || aff.createdAt || new Date(),
-            status: aff.STATUS || 'Affectée',
-            type: aff.MODE_AFFECTATION ? 'Algorithme' : 'Affectation',
-            details: aff.DETAILS || `Affectation ${aff.MODE_AFFECTATION || 'manuelle'}`,
+            status: aff.DECISION || 'Affectée',
+            type: aff.MODE_AFFECTATION ?? 'Affectation',
+            details: aff.DETAILS || `Affectation ${aff.MODE_AFFECTATION || 'Manuelle'}`,
             rapport: aff.DETAILS,
             algorithme: aff.MODE_AFFECTATION,
             source: 'affectation'
@@ -217,7 +221,7 @@ router.get('/', async (req, res) => {
       .filter(item => item !== null);
 
     // 7. Appliquer les filtres de recherche et statut
-    let filtered = combined;
+    let filtered = enrichedAffectations; // CORRECTION : utiliser 'combined' au lieu de 'enrichedAffectations'
     
     if (search) {
       const searchLower = search.toLowerCase();
@@ -233,6 +237,8 @@ router.get('/', async (req, res) => {
 
     // 8. Trier par date décroissante
     filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    console.log('📊 Items retournés avec idTache:', filtered.map(f => ({ id: f.id, idTache: f.idTache })));
 
     res.json(successResponse(filtered));
   } catch (error) {
