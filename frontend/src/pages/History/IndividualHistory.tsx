@@ -41,7 +41,7 @@ const IndividualHistory: React.FC = () => {
     try {
       setLoading(true);
       setError(null);
-      
+
       const user = getCurrentUser();
       if (!user || !user.ID) {
         setError("Utilisateur non connecté");
@@ -52,7 +52,7 @@ const IndividualHistory: React.FC = () => {
 
       // Récupérer l'historique de l'utilisateur depuis le backend
       const response = await historiqueAPI.getByUser(user.ID, filters);
-      
+
       const calculerHeures = (dateDebut?: string, dateFin?: string): number => {
         if (!dateDebut || !dateFin) return 0;
 
@@ -75,22 +75,26 @@ const IndividualHistory: React.FC = () => {
         date: item.createdAt || item.DATE_AFFECTATION,
         status: item.STATUT || 'N/A',
         details: item.DETAILS || item.RAPPORT || '-',
-        type: item.ALGORITHME  || 'Affectation',
+        type: item.ALGORITHME || 'Affectation',
         heures: calculerHeures(item.DATE_DEBUT, item.DATE_FIN),
         dateDebut: item.DATE_DEBUT,
         dateFin: item.DATE_FIN
       }));
 
       setHistory(formattedHistory);
+      const HeuresTotales = formattedHistory.filter((h: HistoryItem) =>
+        h.status === 'Acceptée'
+      );
+      console.log(HeuresTotales);
 
       // Calculer les statistiques
       setStats({
         total: formattedHistory.length,
-        terminees: formattedHistory.filter((h: HistoryItem) => 
+        terminees: formattedHistory.filter((h: HistoryItem) =>
           h.status === 'En Attente').length,
-        enCours: formattedHistory.filter((h: HistoryItem) => 
+        enCours: formattedHistory.filter((h: HistoryItem) =>
           h.status === 'Acceptée' || h.status === 'En cours').length,
-        heuresTotal: formattedHistory.reduce((sum: number, h: HistoryItem) => 
+        heuresTotal: HeuresTotales.reduce((sum: number, h: HistoryItem) =>
           sum + (h.heures || 0), 0)
       });
 
@@ -142,7 +146,7 @@ const IndividualHistory: React.FC = () => {
       item.status,
       item.type,
       item.heures || 0,
-      item.dateDebut && item.dateFin 
+      item.dateDebut && item.dateFin
         ? `${new Date(item.dateDebut).toLocaleDateString('fr-FR')} - ${new Date(item.dateFin).toLocaleDateString('fr-FR')}`
         : '-',
     ]);
@@ -152,8 +156,8 @@ const IndividualHistory: React.FC = () => {
       ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
     ].join('\n');
 
-    const blob = new Blob(['\uFEFF' + csvContent], { 
-      type: 'text/csv;charset=utf-8;' 
+    const blob = new Blob(['\uFEFF' + csvContent], {
+      type: 'text/csv;charset=utf-8;'
     });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -182,7 +186,7 @@ const IndividualHistory: React.FC = () => {
             onClick={exportToCSV}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            📥 Exporter CSV
+            Exporter CSV
           </button>
         </div>
 
@@ -238,7 +242,7 @@ const IndividualHistory: React.FC = () => {
                 onClick={resetFilters}
                 className="w-full px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
               >
-                🔄 Réinitialiser
+                Réinitialiser
               </button>
             </div>
           </div>
@@ -327,7 +331,7 @@ const IndividualHistory: React.FC = () => {
 
         {history.length === 0 && !loading && (
           <div className="text-center py-12">
-            <div className="text-gray-400 text-6xl mb-4">📋</div>
+            <div className="text-gray-400 text-6xl mb-4"></div>
             <p className="text-gray-500 text-lg">Aucun historique trouvé</p>
             <p className="text-gray-400 text-sm mt-2">
               Vos tâches assignées apparaîtront ici

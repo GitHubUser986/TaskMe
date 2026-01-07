@@ -93,7 +93,7 @@ const ManualAssignmentInterface = () => {
     try {
       const response = await affectationAPI.getManualData(idTache);
       const data = response.data;
-      
+
       if (data.success) {
         setTache(data.tache);
         setAuditeurs(data.auditeurs);
@@ -112,16 +112,16 @@ const ManualAssignmentInterface = () => {
   };
 
   const handleAuditeurToggle = (auditeurId: string) => {
-    setSelectedAuditeurs(prev => 
-      prev.includes(auditeurId) 
+    setSelectedAuditeurs(prev =>
+      prev.includes(auditeurId)
         ? prev.filter(id => id !== auditeurId)
         : [...prev, auditeurId]
     );
   };
 
   const handleVehiculeToggle = (vehiculeId: string) => {
-    setSelectedVehicules(prev => 
-      prev.includes(vehiculeId) 
+    setSelectedVehicules(prev =>
+      prev.includes(vehiculeId)
         ? prev.filter(id => id !== vehiculeId)
         : [...prev, vehiculeId]
     );
@@ -139,7 +139,7 @@ const ManualAssignmentInterface = () => {
         auditeursIds: selectedAuditeurs,
         vehiculesIds: selectedVehicules
       });
-      
+
       setValidation(response.data);
       setShowValidation(true);
     } catch (error) {
@@ -150,7 +150,7 @@ const ManualAssignmentInterface = () => {
 
   const submitAffectation = async () => {
     if (!validation || !validation.success) return;
-    
+
     setSubmitting(true);
     try {
       const response = await affectationAPI.createManual({
@@ -158,9 +158,9 @@ const ManualAssignmentInterface = () => {
         auditeursIds: selectedAuditeurs,
         vehiculesIds: selectedVehicules
       });
-      
+
       const data = response.data;
-      
+
       if (data.success) {
         alert('Affectation créée avec succès! Un rapport a été généré dans l\'historique.');
         setShowValidation(false);
@@ -181,13 +181,13 @@ const ManualAssignmentInterface = () => {
 
   const downloadRapport = () => {
     if (!validation || !tache) return;
-    
+
     const rapport = validation.contraintesNonRespectees.length === 0
       ? '=== RAPPORT D\'AFFECTATION MANUELLE ===\n\n✓ Toutes les contraintes sont respectées.'
-      : `=== RAPPORT D'AFFECTATION MANUELLE ===\n\nTâche: ${tache.NOM}\n\n⚠ CONTRAINTES NON RESPECTÉES:\n\n${validation.contraintesNonRespectees.map((c, i) => 
-          `${i + 1}. ${c.type.toUpperCase()}\n   ${c.message}\n   ${JSON.stringify(c.details, null, 2)}`
-        ).join('\n\n')}`;
-    
+      : `=== RAPPORT D'AFFECTATION MANUELLE ===\n\nTâche: ${tache.NOM}\n\n⚠ CONTRAINTES NON RESPECTÉES:\n\n${validation.contraintesNonRespectees.map((c, i) =>
+        `${i + 1}. ${c.type.toUpperCase()}\n   ${c.message}\n   ${JSON.stringify(c.details, null, 2)}`
+      ).join('\n\n')}`;
+
     const blob = new Blob([rapport], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -211,7 +211,7 @@ const ManualAssignmentInterface = () => {
         <div className="bg-red-50 border border-red-200 rounded-lg p-6 max-w-md">
           <AlertCircle className="w-8 h-8 text-red-600 mb-2" />
           <p className="text-red-800">{error}</p>
-          <button 
+          <button
             onClick={fetchTaches}
             className="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
           >
@@ -233,7 +233,7 @@ const ManualAssignmentInterface = () => {
       <div className="max-w-7xl mx-auto px-4 space-y-6">
         <div className="bg-white rounded-lg shadow p-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">Affectation Manuelle</h1>
-          
+
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Sélectionner une tâche
@@ -279,13 +279,12 @@ const ManualAssignmentInterface = () => {
               )}
             </div>
 
-            <div className={`p-4 rounded-lg border-2 ${
-              placesRestantes < 0 
-                ? 'bg-red-100 border-red-500' 
-                : placesRestantes === 0 
-                ? 'bg-green-100 border-green-500' 
-                : 'bg-blue-100 border-blue-500'
-            }`}>
+            <div className={`p-4 rounded-lg border-2 ${placesRestantes < 0
+                ? 'bg-red-100 border-red-500'
+                : placesRestantes === 0
+                  ? 'bg-green-100 border-green-500'
+                  : 'bg-blue-100 border-blue-500'
+              }`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Users className="w-5 h-5" />
@@ -325,11 +324,10 @@ const ManualAssignmentInterface = () => {
                         <div
                           key={auditeur.ID}
                           onClick={() => handleAuditeurToggle(auditeur.ID)}
-                          className={`p-3 rounded border-2 cursor-pointer transition ${
-                            isSelected 
-                              ? 'border-blue-500 bg-blue-50' 
+                          className={`p-3 rounded border-2 cursor-pointer transition ${isSelected
+                              ? 'border-blue-500 bg-blue-50'
                               : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -344,8 +342,8 @@ const ManualAssignmentInterface = () => {
                           </div>
                           {!compatible && (
                             <div className="mt-2 text-xs text-orange-600">
-                              {!gradeOk && <div>⚠️ Grade non compatible</div>}
-                              {!specialiteOk && <div>⚠️ Spécialité non compatible</div>}
+                              {!gradeOk && <div>Grade non compatible</div>}
+                              {!specialiteOk && <div>Spécialité non compatible</div>}
                             </div>
                           )}
                         </div>
@@ -363,9 +361,8 @@ const ManualAssignmentInterface = () => {
                   </h2>
                   {selectedVehicules.length > 0 && (
                     <div className="text-sm mt-1">
-                      Capacité totale: <span className={`font-semibold ${
-                        capaciteTotale < selectedAuditeurs.length ? 'text-red-600' : 'text-green-600'
-                      }`}>
+                      Capacité totale: <span className={`font-semibold ${capaciteTotale < selectedAuditeurs.length ? 'text-red-600' : 'text-green-600'
+                        }`}>
                         {capaciteTotale} / {selectedAuditeurs.length} requis
                       </span>
                     </div>
@@ -383,16 +380,15 @@ const ManualAssignmentInterface = () => {
                   ) : (
                     vehicules.map(vehicule => {
                       const isSelected = selectedVehicules.includes(vehicule.ID);
-                      
+
                       return (
                         <div
                           key={vehicule.ID}
                           onClick={() => handleVehiculeToggle(vehicule.ID)}
-                          className={`p-3 rounded border-2 cursor-pointer transition ${
-                            isSelected 
-                              ? 'border-blue-500 bg-blue-50' 
+                          className={`p-3 rounded border-2 cursor-pointer transition ${isSelected
+                              ? 'border-blue-500 bg-blue-50'
                               : 'border-gray-200 hover:border-gray-300'
-                          }`}
+                            }`}
                         >
                           <div className="font-medium">{vehicule.MARQUE} {vehicule.MODELE}</div>
                           <div className="text-sm text-gray-600">
@@ -424,17 +420,17 @@ const ManualAssignmentInterface = () => {
                 <h2 className="text-2xl font-bold flex items-center gap-2">
                   {validation.valide ? (
                     <>
-                      <CheckCircle className="text-green-600 w-7 h-7" /> 
+                      <CheckCircle className="text-green-600 w-7 h-7" />
                       Validation réussie
                     </>
                   ) : (
                     <>
-                      <AlertCircle className="text-orange-600 w-7 h-7" /> 
+                      <AlertCircle className="text-orange-600 w-7 h-7" />
                       Contraintes non respectées
                     </>
                   )}
                 </h2>
-                <button 
+                <button
                   onClick={() => setShowValidation(false)}
                   className="p-2 hover:bg-gray-100 rounded-full"
                 >
@@ -457,7 +453,7 @@ const ManualAssignmentInterface = () => {
                         Les contraintes suivantes ne sont pas respectées:
                       </p>
                     </div>
-                    
+
                     {validation.contraintesNonRespectees.map((contrainte, idx) => (
                       <div key={idx} className="bg-red-50 border border-red-200 rounded p-4">
                         <div className="flex items-start gap-2">

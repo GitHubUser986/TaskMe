@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { userAPI } from '../../services/api';
+import Pagination from '../../components/common/Pagination';
 
 interface User {
   _id: string;
@@ -21,7 +22,15 @@ const UsersManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const totalPages = Math.ceil(users.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentUsers = users.slice(startIndex, startIndex + itemsPerPage);
+
+
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('');
@@ -42,7 +51,7 @@ const UsersManagement: React.FC = () => {
     SPECIALITE: '',
   });
 
-  // 📥 Charger les utilisateurs au montage du composant
+  // Charger les utilisateurs au montage du composant
   useEffect(() => {
     fetchUsers();
     fetchStats();
@@ -54,23 +63,23 @@ const UsersManagement: React.FC = () => {
     return () => window.removeEventListener('click', closeMenu);
   }, []);
 
-  // 🔄 Recharger lors du changement de filtres
+  // Recharger lors du changement de filtres
   useEffect(() => {
     fetchUsers();
   }, [searchTerm, selectedSpecialty]);
 
-  // 📡 Récupérer les utilisateurs
+  // Récupérer les utilisateurs
   const fetchUsers = async () => {
     try {
       setLoading(true);
       const params: any = {};
-      
+
       if (searchTerm) params.search = searchTerm;
       if (selectedSpecialty) params.specialite = selectedSpecialty;
       console.log(selectedSpecialty);
 
       const response = await userAPI.getAll(params);
-      
+
       if (response.data.success) {
         setUsers(response.data.data.users);
         setError('');
@@ -83,7 +92,7 @@ const UsersManagement: React.FC = () => {
     }
   };
 
-  // 📊 Récupérer les statistiques
+  // Récupérer les statistiques
   const fetchStats = async () => {
     try {
       const response = await userAPI.getStats();
@@ -95,56 +104,55 @@ const UsersManagement: React.FC = () => {
     }
   };
 
-  // ✏️ Modifier un utilisateur
- const handleEdit = (user: any) => {
-  setSelectedUser(user);
-  setFormData({
-    PRENOM: user.PRENOM,
-    NOM: user.NOM,
-    EMAIL: user.EMAIL,
-    ROLE: user.ROLE,
-    GRADE: user.GRADE,
-    SPECIALITE: user.SPECIALITE,
-  });
-  setIsEditModalOpen(true);
-};
+  // Modifier un utilisateur
+  const handleEdit = (user: any) => {
+    setSelectedUser(user);
+    setFormData({
+      PRENOM: user.PRENOM,
+      NOM: user.NOM,
+      EMAIL: user.EMAIL,
+      ROLE: user.ROLE,
+      GRADE: user.GRADE,
+      SPECIALITE: user.SPECIALITE,
+    });
+    setIsEditModalOpen(true);
+  };
 
-const handleEditSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  if (!selectedUser) return;
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedUser) return;
 
-  try {
-    const response = await userAPI.update(selectedUser._id, formData);
-    if (response.data.success) {
-      // Mettre à jour localement la liste des users
-      setUsers(users.map(u => u._id === selectedUser._id ? response.data.user : u));
-      fetchStats(); // rafraîchir les stats
-      setIsEditModalOpen(false);
-      alert('Utilisateur mis à jour avec succès');
+    try {
+      const response = await userAPI.update(selectedUser._id, formData);
+      if (response.data.success) {
+        // Mettre à jour localement la liste des users
+        setUsers(users.map(u => u._id === selectedUser._id ? response.data.user : u));
+        fetchStats(); // rafraîchir les stats
+        setIsEditModalOpen(false);
+        alert('Utilisateur mis à jour avec succès');
+      }
+    } catch (err: any) {
+      console.error('Erreur lors de la mise à jour:', err);
+      alert(err.response?.data?.message || 'Erreur lors de la mise à jour');
     }
-  } catch (err: any) {
-    console.error('Erreur lors de la mise à jour:', err);
-    alert(err.response?.data?.message || 'Erreur lors de la mise à jour');
-  }
-};
+  };
 
-
-  // 🔄 Basculer le statut actif/inactif
+  // Basculer le statut actif/inactif
   const handleToggleStatus = async (id: string) => {
     try {
       const response = await userAPI.toggleStatus(id);
-      
+
       if (response.data.success) {
         // Mise à jour locale
-        setUsers(users.map(user => 
-          user._id === id 
+        setUsers(users.map(user =>
+          user._id === id
             ? { ...user, ACTIF: !user.ACTIF }
             : user
         ));
-        
+
         // Mettre à jour les stats
         fetchStats();
-        
+
         alert(response.data.message);
       }
     } catch (err: any) {
@@ -153,7 +161,7 @@ const handleEditSubmit = async (e: React.FormEvent) => {
     }
   };
 
-  // 🗑️ Supprimer un utilisateur
+  // Supprimer un utilisateur
   const handleDelete = async (id: string, nom: string, prenom: string) => {
     if (!window.confirm(`Voulez-vous vraiment supprimer ${prenom} ${nom} ?`)) {
       return;
@@ -161,7 +169,7 @@ const handleEditSubmit = async (e: React.FormEvent) => {
 
     try {
       const response = await userAPI.delete(id);
-      
+
       if (response.data.success) {
         setUsers(users.filter(user => user._id !== id));
         fetchStats();
@@ -173,7 +181,7 @@ const handleEditSubmit = async (e: React.FormEvent) => {
     }
   };
 
-  // 🎨 Badge de grade
+  //  Badge de grade
   const getGradeBadgeColor = (grade: string) => {
     switch (grade) {
       case 'A': return 'bg-green-100 text-green-800';
@@ -183,21 +191,21 @@ const handleEditSubmit = async (e: React.FormEvent) => {
     }
   };
 
-    const getRoleLabel = (role: 'SUPERADMIN' | 'ADMIN' | 'USER') => {
-      switch (role) {
-        case 'SUPERADMIN':
-          return 'Administrateur';
-        case 'ADMIN':
-          return 'Coordinateur';
-        case 'USER':
-          return 'Auditeur';
-        default:
-          return role;
-      }
-    };
+  const getRoleLabel = (role: 'SUPERADMIN' | 'ADMIN' | 'USER') => {
+    switch (role) {
+      case 'SUPERADMIN':
+        return 'Administrateur';
+      case 'ADMIN':
+        return 'Coordinateur';
+      case 'USER':
+        return 'Auditeur';
+      default:
+        return role;
+    }
+  };
 
-  // 🎨 Badge de rôle
-    const getRoleBadgeColor = (role: 'SUPERADMIN' | 'ADMIN' | 'USER') => {
+  //  Badge de rôle
+  const getRoleBadgeColor = (role: 'SUPERADMIN' | 'ADMIN' | 'USER') => {
     switch (role) {
       case 'SUPERADMIN':
         return 'bg-purple-100 text-purple-800';
@@ -210,7 +218,7 @@ const handleEditSubmit = async (e: React.FormEvent) => {
     }
   };
 
-  // 🎨 Badge de statut
+  //  Badge de statut
   const getStatusBadge = (actif: boolean) => {
     if (actif) {
       return (
@@ -226,12 +234,12 @@ const handleEditSubmit = async (e: React.FormEvent) => {
     );
   };
 
-  // 📝 Affichage du nom court de la spécialité
-const getShortSpecialty = (specialite: string) => {
-  // Supprime "Auditeur " ou "Auditeur d'/de/des " en début de chaîne
-  const clean = specialite.replace(/^Auditeur (d'|d’|de |des )?/, '');
-  return clean.charAt(0).toUpperCase() + clean.slice(1);
-};
+  // Affichage du nom court de la spécialité
+  const getShortSpecialty = (specialite: string) => {
+    // Supprime "Auditeur " ou "Auditeur d'/de/des " en début de chaîne
+    const clean = specialite.replace(/^Auditeur (d'|d’|de |des )?/, '');
+    return clean.charAt(0).toUpperCase() + clean.slice(1);
+  };
 
   if (loading && users.length === 0) {
     return (
@@ -251,7 +259,7 @@ const getShortSpecialty = (specialite: string) => {
         <div className="mb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <h1 className="text-3xl font-bold text-gray-800">Gestion des utilisateurs</h1>
-            
+
             <div className="flex flex-col md:flex-row gap-3">
               <input
                 type="text"
@@ -260,7 +268,7 @@ const getShortSpecialty = (specialite: string) => {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-              
+
               <select
                 className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full md:w-56"
                 value={selectedSpecialty}
@@ -272,12 +280,12 @@ const getShortSpecialty = (specialite: string) => {
                 <option value="Auditeur de planification">Planification</option>
                 <option value="Auditeur des services financiers">Services financiers</option>
               </select>
-              
+
               <button
                 onClick={() => navigate('/users/create')}
                 className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors whitespace-nowrap"
               >
-                ➕ Nouvel utilisateur
+                Nouvel utilisateur
               </button>
             </div>
           </div>
@@ -317,7 +325,7 @@ const getShortSpecialty = (specialite: string) => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {users.map((user) => (
+                {currentUsers.map((user) => (
                   <tr key={user._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col gap-1">
@@ -359,10 +367,10 @@ const getShortSpecialty = (specialite: string) => {
                         <div className="absolute right-6 mt-2 w-44 bg-white border border-gray-200 rounded-md shadow-lg z-50">
                           <ul className="flex flex-col">
                             <li>
-                                <button
-                                  onClick={() => handleEdit(user)}
-                                  className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
-                                >
+                              <button
+                                onClick={() => handleEdit(user)}
+                                className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"
+                              >
                                 Editer
                               </button>
                             </li>
@@ -400,58 +408,73 @@ const getShortSpecialty = (specialite: string) => {
             </table>
           </div>
           {isEditModalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-              <div className="bg-white p-6 rounded shadow-lg w-96">
-                <h2 className="text-lg font-semibold mb-4">Éditer Utilisateur</h2>
-                <form onSubmit={handleEditSubmit} className="space-y-3">
-                  <input
-                    type="text"
-                    placeholder="Prénom"
-                    value={formData.PRENOM}
-                    onChange={e => setFormData({ ...formData, PRENOM: e.target.value })}
-                    className="w-full border px-2 py-1 rounded"
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="Nom"
-                    value={formData.NOM}
-                    onChange={e => setFormData({ ...formData, NOM: e.target.value })}
-                    className="w-full border px-2 py-1 rounded"
-                    required
-                  />
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+              <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+                <div className='sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between'>
+                <h2 className="text-2xl font-bold text-gray-900">Éditer Utilisateur</h2>
+
+                </div>
+                <form onSubmit={handleEditSubmit} className="p-6 space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 my-3">Prénom *</label>
+                    <input
+                      type="text"
+                      placeholder="Prénom"
+                      value={formData.PRENOM}
+                      onChange={e => setFormData({ ...formData, PRENOM: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                    <label className="block text-sm font-medium text-gray-700 my-3">Nom *</label>
+                    <input
+                      type="text"
+                      placeholder="Nom"
+                      value={formData.NOM}
+                      onChange={e => setFormData({ ...formData, NOM: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                  <label className="block text-sm font-medium text-gray-700 my-3">Email *</label>
                   <input
                     type="email"
                     placeholder="Email"
                     value={formData.EMAIL}
                     onChange={e => setFormData({ ...formData, EMAIL: e.target.value })}
-                    className="w-full border px-2 py-1 rounded"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
+                  <label className="block text-sm font-medium text-gray-700 my-3">Rôle *</label>
                   <select
                     value={formData.ROLE}
                     onChange={e => setFormData({ ...formData, ROLE: e.target.value })}
-                    className="w-full border px-2 py-1 rounded"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   >
                     <option value="SUPERADMIN">Administrateur</option>
                     <option value="ADMIN">Coordinateur</option>
                     <option value="USER">Auditeur</option>
                   </select>
+                  </div>
+                  <div>
+                  <label className="block text-sm font-medium text-gray-700 my-3">Grade *</label>
                   <select
                     value={formData.GRADE}
                     onChange={e => setFormData({ ...formData, GRADE: e.target.value })}
-                    className="w-full border px-2 py-1 rounded"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   >
                     <option value="A">A</option>
                     <option value="B">B</option>
                     <option value="C">C</option>
                   </select>
+                  <label className="block text-sm font-medium text-gray-700 my-3">Spécialité *</label>
                   <select
                     value={formData.SPECIALITE}
                     onChange={e => setFormData({ ...formData, SPECIALITE: e.target.value })}
-                    className="w-full border px-2 py-1 rounded"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   >
                     <option value="Auditeur pédagogique">Auditeur pédagogique</option>
@@ -459,15 +482,17 @@ const getShortSpecialty = (specialite: string) => {
                     <option value="Auditeur de planification">Auditeur de planification</option>
                     <option value="Auditeur des services financiers">Auditeur des services financiers</option>
                   </select>
+                  </div>
+                  </div>
                   <div className="flex justify-end gap-2 mt-3">
                     <button
                       type="button"
                       onClick={() => setIsEditModalOpen(false)}
-                      className="px-4 py-1 bg-gray-300 rounded"
+                      className="px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
                     >
                       Annuler
                     </button>
-                    <button type="submit" className="px-4 py-1 bg-blue-500 text-white rounded">
+                    <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                       Sauvegarder
                     </button>
                   </div>

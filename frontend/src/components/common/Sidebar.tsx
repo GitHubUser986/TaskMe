@@ -16,7 +16,7 @@ const Sidebar: React.FC = () => {
   ];
 
   return (
-    <div className="w-64 min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 border-r border-slate-700 shadow-2xl relative overflow-hidden">
+    <div className="w-[260px] min-w-[260px] min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 border-r border-slate-700 shadow-2xl relative overflow-hidden flex-shrink-0">
       
       {/* Effet de fond animé */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 via-purple-500/5 to-pink-500/5"></div>

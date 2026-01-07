@@ -7,15 +7,15 @@ import User from '../models/User.js';
 const router = express.Router();
 
 // Helper pour formater les réponses (cohérent avec tacheRoutes.js)
-const successResponse = (data, message = "Succès") => ({ 
-  success: true, 
-  message, 
-  data 
+const successResponse = (data, message = "Succès") => ({
+  success: true,
+  message,
+  data
 });
 
-const errorResponse = (message) => ({ 
-  success: false, 
-  message 
+const errorResponse = (message) => ({
+  success: false,
+  message
 });
 
 // Middleware de logging
@@ -27,21 +27,21 @@ router.use((req, res, next) => {
 router.get('/stats', async (req, res) => {
   try {
     const { startDate, endDate, userId } = req.query;
-    
+
     let query = {};
-    
+
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate);
       if (endDate) query.createdAt.$lte = new Date(endDate);
     }
-    
+
     if (userId) {
       query.ID_AUDITEUR = { $in: [userId] };
     }
 
     const totalActions = await Historique.countDocuments(query);
-    
+
     const actionsByType = await Historique.aggregate([
       { $match: query },
       { $group: { _id: '$ACTION', count: { $sum: 1 } } }
@@ -62,7 +62,7 @@ router.get('/stats', async (req, res) => {
 
     res.json(successResponse(stats));
   } catch (error) {
-    console.error('❌ Erreur stats:', error);
+    console.error('Erreur stats:', error);
     res.status(500).json(errorResponse(error.message));
   }
 });
@@ -70,11 +70,11 @@ router.get('/stats', async (req, res) => {
 // GET /api/historique/global - Historique système (ID_AUDITEUR = null)
 router.get('/global', async (req, res) => {
   try {
-    
+
     const historiques = await Historique.find()
       .sort({ createdAt: -1 })
       .limit(1000);
-    
+
     // Enrichir avec les informations des tâches
     const enrichedData = await Promise.all(
       historiques.map(async (hist) => {
@@ -119,7 +119,7 @@ router.get('/global', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const { search, startDate, endDate, status, type } = req.query;
-    
+
     // 1. Construire la requête pour Historique
     let historiqueQuery = {};
     if (startDate || endDate) {
@@ -154,7 +154,7 @@ router.get('/', async (req, res) => {
         try {
           const tache = await Tache.findOne({ ID: hist.ID_TACHE });
           let userName = 'Système';
-          
+
           if (hist.ID_AUDITEUR && hist.ID_AUDITEUR.length > 0) {
             const user = await User.findOne({ ID: hist.ID_AUDITEUR[0] });
             if (user) {
@@ -186,7 +186,7 @@ router.get('/', async (req, res) => {
       affectations.map(async (aff) => {
         try {
           const tache = await Tache.findOne({ ID: aff.ID_TACHE });
-          
+
           // Récupérer le nom de l'auditeur
           let userName = 'Utilisateur inconnu';
           if (aff.ID_AUDITEUR && aff.ID_AUDITEUR.length > 0) {
@@ -222,23 +222,21 @@ router.get('/', async (req, res) => {
 
     // 7. Appliquer les filtres de recherche et statut
     let filtered = enrichedAffectations; // CORRECTION : utiliser 'combined' au lieu de 'enrichedAffectations'
-    
+
     if (search) {
       const searchLower = search.toLowerCase();
-      filtered = filtered.filter(item => 
+      filtered = filtered.filter(item =>
         item.userName.toLowerCase().includes(searchLower) ||
         item.taskName.toLowerCase().includes(searchLower)
       );
     }
-    
+
     if (status) {
       filtered = filtered.filter(item => item.status === status);
     }
 
     // 8. Trier par date décroissante
     filtered.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-
-    console.log('📊 Items retournés avec idTache:', filtered.map(f => ({ id: f.id, idTache: f.idTache })));
 
     res.json(successResponse(filtered));
   } catch (error) {
@@ -251,7 +249,7 @@ router.get('/', async (req, res) => {
 router.get('/task/:idTache', async (req, res) => {
   try {
     const { idTache } = req.params;
-    
+
     const historiques = await Historique.find({ ID_TACHE: idTache })
       .sort({ createdAt: -1 });
 
@@ -260,8 +258,8 @@ router.get('/task/:idTache', async (req, res) => {
         try {
           let auditeurs = [];
           if (hist.ID_AUDITEUR && hist.ID_AUDITEUR.length > 0) {
-            const users = await User.find({ 
-              ID: { $in: hist.ID_AUDITEUR } 
+            const users = await User.find({
+              ID: { $in: hist.ID_AUDITEUR }
             });
             auditeurs = users.map(u => ({
               ID: u.ID,
@@ -292,7 +290,7 @@ router.get('/task/:idTache', async (req, res) => {
 router.get('/user/:idAuditeur', async (req, res) => {
   try {
     const { idAuditeur } = req.params;
-    
+
     // Récupérer l'historique direct de l'utilisateur
     const historiques = await Historique.find({
       ID_AUDITEUR: { $in: [idAuditeur] }
@@ -354,7 +352,7 @@ router.get('/user/:idAuditeur', async (req, res) => {
 
     res.json(enrichedAffectations);
   } catch (error) {
-    console.error('❌ Erreur user:', error);
+    console.error('Erreur user:', error);
     res.status(500).json({ message: error.message });
   }
 });
@@ -363,7 +361,7 @@ router.get('/user/:idAuditeur', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { ID, ID_AUDITEUR, ID_TACHE, DETAILS, ACTION } = req.body;
-    
+
     const historique = new Historique({
       ID: ID || `HIST_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       ID_AUDITEUR,
@@ -371,7 +369,7 @@ router.post('/', async (req, res) => {
       DETAILS,
       ACTION
     });
-    
+
     await historique.save();
     res.status(201).json(successResponse(historique, "Historique créé avec succès"));
   } catch (error) {
@@ -383,10 +381,10 @@ router.post('/', async (req, res) => {
 // DELETE /api/historique/:id - Supprimer un historique
 router.delete('/:id', async (req, res) => {
   try {
-    const historique = await Historique.findOneAndDelete({ 
-      ID: req.params.id 
+    const historique = await Historique.findOneAndDelete({
+      ID: req.params.id
     });
-    
+
     if (!historique) {
       return res.status(404).json(errorResponse('Historique non trouvé'));
     }

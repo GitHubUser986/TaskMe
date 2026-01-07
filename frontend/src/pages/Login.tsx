@@ -35,9 +35,6 @@ const handleSubmit = async (e: React.FormEvent) => {
     };
 
     const response = await authAPI.login(payload);
-    
-    console.log('📥 Réponse complète:', response);
-    console.log('📦 Response.data:', response.data);
 
     // Option A : Si la structure est response.data.data
     if (response.data.success && response.data.data) {
@@ -53,20 +50,7 @@ const handleSubmit = async (e: React.FormEvent) => {
       }
 
       navigate('/dashboard');
-    }
-    // Option B : Si la structure est response.data directement
-    else if (response.data.success) {
-      const { user, token } = response.data;
-
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-
-      if (remember) {
-        localStorage.setItem('rememberedEmail', formData.email);
-      } else {
-        localStorage.removeItem('rememberedEmail');
-      }
-      navigate('/dashboard');
+    
     } else {
       
       setError('Erreur de connexion');

@@ -73,7 +73,6 @@ export const createNotification = async (req, res) => {
         userName
       ).then(result => {
         if (result.success) {
-          console.log(`Email envoyé à ${user.EMAIL} pour la notification ${notification.ID}`);
         } else {
           console.error(`Échec de l'envoi d'email à ${user.EMAIL}:`, result.error);
         }

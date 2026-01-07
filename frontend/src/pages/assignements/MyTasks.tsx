@@ -31,38 +31,38 @@ const MyTasks: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   // Modals
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showDelegateModal, setShowDelegateModal] = useState(false);
   const [justificatif, setJustificatif] = useState('');
-  
+
   const [auditeurs, setAuditeurs] = useState<any[]>([]);
   const [selectedAuditeur, setSelectedAuditeur] = useState('');
 
   const formatPeriod = (startDate: string, endDate: string) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
-    
+
     if (start.toDateString() === end.toDateString()) {
       return start.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
     }
-    
-    return `${start.toLocaleDateString('fr-FR', { day: 'numeric'})} - ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+
+    return `${start.toLocaleDateString('fr-FR', { day: 'numeric' })} - ${end.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}`;
   };
 
   const calculerDelaiRestant = (dateAffectation: Date): string => {
     const maintenant = new Date();
     const delaiLimite = new Date(dateAffectation.getTime() + 24 * 60 * 60 * 1000);
     const diffMs = delaiLimite.getTime() - maintenant.getTime();
-    
+
     if (diffMs <= 0) {
       return "Délai dépassé";
     }
-    
+
     const heures = Math.floor(diffMs / (1000 * 60 * 60));
     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-    
+
     return `${heures}h ${minutes}min restantes`;
   };
 
@@ -92,7 +92,7 @@ const MyTasks: React.FC = () => {
       dateAffectation: affectation.DATE_AFFECTATION ? new Date(affectation.DATE_AFFECTATION) : undefined,
       isDelegation: !!affectation.ID_AUDITEUR_DELEGANT,
       idAuditeurDelegant: affectation.ID_AUDITEUR_DELEGANT,
-      delaiRestant: affectation.DECISION === 'En Attente' && affectation.DATE_AFFECTATION 
+      delaiRestant: affectation.DECISION === 'En Attente' && affectation.DATE_AFFECTATION
         ? calculerDelaiRestant(new Date(affectation.DATE_AFFECTATION))
         : undefined
     };
@@ -101,9 +101,9 @@ const MyTasks: React.FC = () => {
   useEffect(() => {
     fetchTasks();
     fetchAuditeurs();
-    
+
     const interval = setInterval(() => {
-      setTasks(prevTasks => 
+      setTasks(prevTasks =>
         prevTasks.map(task => ({
           ...task,
           delaiRestant: task.decision === 'En Attente' && task.dateAffectation
@@ -172,29 +172,29 @@ const MyTasks: React.FC = () => {
 
   const handleAcceptTask = async (taskId?: string, isDelegation?: boolean) => {
     if (!taskId) return;
-    
+
     try {
       const userDataString = localStorage.getItem('user');
       if (!userDataString) return;
-      
+
       const userData = JSON.parse(userDataString);
       const userId = userData.ID || userData.id;
 
       if (isDelegation) {
         // CORRIGÉ: accepterDelegation prend (idAuditeur, idTache)
         await affectationAPI.accepterDelegation(userId, taskId);
-        alert('✅ Délégation acceptée avec succès !');
+        alert('Délégation acceptée avec succès !');
       } else {
         // CORRIGÉ: accepterAffectation prend (idAuditeur, idTache)
         await affectationAPI.accepterAffectation(userId, taskId);
-        alert('✅ Tâche acceptée avec succès !');
+        alert('Tâche acceptée avec succès !');
       }
-      
+
       await fetchTasks();
       setSelectedTask(null);
     } catch (err: any) {
       console.error('Erreur acceptation:', err);
-      alert('❌ Erreur lors de l\'acceptation.');
+      alert('Erreur lors de l\'acceptation.');
     }
   };
 
@@ -207,25 +207,25 @@ const MyTasks: React.FC = () => {
     if (!selectedTask) return;
 
     if (!justificatif || justificatif.trim().length < 10) {
-      alert('⚠️ Le justificatif doit contenir au moins 10 caractères.');
+      alert('Le justificatif doit contenir au moins 10 caractères.');
       return;
     }
 
     try {
       const userDataString = localStorage.getItem('user');
       if (!userDataString) return;
-      
+
       const userData = JSON.parse(userDataString);
       const userId = userData.ID || userData.id;
 
       if (selectedTask.isDelegation) {
         // CORRIGÉ: refuserDelegation prend (idAuditeur, idTache) et le justificatif est dans le body
         await affectationAPI.refuserDelegation(userId, selectedTask.id);
-        alert('❌ Délégation refusée. La tâche est considérée comme refusée par l\'auditeur initial.');
+        alert('Délégation refusée. La tâche est considérée comme refusée par l\'auditeur initial.');
       } else {
         // CORRIGÉ: refuserAffectation prend (idAuditeur, idTache, justificatif)
         await affectationAPI.refuserAffectation(userId, selectedTask.id, justificatif);
-        alert('❌ Tâche refusée.');
+        alert('Tâche refusée.');
       }
 
       setShowRejectModal(false);
@@ -234,13 +234,13 @@ const MyTasks: React.FC = () => {
       setSelectedTask(null);
     } catch (err: any) {
       console.error('Erreur refus:', err);
-      alert('❌ Erreur lors du refus.');
+      alert('Erreur lors du refus.');
     }
   };
 
   const handleDelegateTask = (taskId?: string) => {
     if (!taskId) {
-      alert('⚠️ Veuillez sélectionner une tâche.');
+      alert('Veuillez sélectionner une tâche.');
       return;
     }
     setShowDelegateModal(true);
@@ -248,31 +248,31 @@ const MyTasks: React.FC = () => {
 
   const confirmDelegate = async () => {
     if (!selectedTask || !selectedAuditeur) {
-      alert('⚠️ Veuillez sélectionner un auditeur.');
+      alert('Veuillez sélectionner un auditeur.');
       return;
     }
 
     if (!justificatif || justificatif.trim().length < 10) {
-      alert('⚠️ Le justificatif doit contenir au moins 10 caractères.');
+      alert('Le justificatif doit contenir au moins 10 caractères.');
       return;
     }
 
     try {
       const userDataString = localStorage.getItem('user');
       if (!userDataString) return;
-      
+
       const userData = JSON.parse(userDataString);
       const userId = userData.ID || userData.id;
 
       // CORRIGÉ: deleguerAffectation prend (idAuditeur, idTache, idAuditeurDelegue, justificatif)
       await affectationAPI.deleguerAffectation(
-        userId, 
-        selectedTask.id, 
+        userId,
+        selectedTask.id,
         selectedAuditeur,
         justificatif
       );
-      
-      alert('✅ Tâche déléguée avec succès ! L\'auditeur a 24h pour répondre.');
+
+      alert('Tâche déléguée avec succès ! L\'auditeur a 24h pour répondre.');
       setShowDelegateModal(false);
       setSelectedAuditeur('');
       setJustificatif('');
@@ -280,7 +280,7 @@ const MyTasks: React.FC = () => {
       setSelectedTask(null);
     } catch (err: any) {
       console.error('Erreur délégation:', err);
-      alert('❌ Erreur lors de la délégation.');
+      alert('Erreur lors de la délégation.');
     }
   };
 
@@ -384,7 +384,7 @@ const MyTasks: React.FC = () => {
             </div>
           </div>
           <br />
-          
+
           <div className="flex flex-col md:flex-row gap-3">
             <input
               type="text"
@@ -393,39 +393,18 @@ const MyTasks: React.FC = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            
+
             <select
               className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full md:w-56"
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
             >
               <option value="">Tous les statuts</option>
-              <option value="Affectée">Affectée</option>
-              <option value="En attente">En attente</option>
-              <option value="Créée">Créée</option>
-              <option value="Terminée">Terminée</option>
+              <option value="En Attente">En Attente</option>
+              <option value="Acceptée">Acceptée</option>
+              <option value="Refusée">Refusée</option>
+              <option value="Déléguée">Déléguée</option>
             </select>
-            <button 
-              onClick={() => handleAcceptTask(selectedTask?.id, selectedTask?.isDelegation)}
-              disabled={!selectedTask || selectedTask.decision !== 'En Attente'}
-              className="px-6 py-2 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Accepter
-            </button>
-            <button 
-              onClick={() => handleRejectTask(selectedTask?.id)}
-              disabled={!selectedTask || selectedTask.decision !== 'En Attente'}
-              className="px-6 py-2 bg-red-600 text-white font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Refuser
-            </button>
-            <button 
-              onClick={() => handleDelegateTask(selectedTask?.id)}
-              disabled={!selectedTask || selectedTask.decision !== 'En Attente' || selectedTask.isDelegation}
-              className="px-6 py-2 bg-yellow-600 text-white font-medium rounded-md hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Déléguer
-            </button>
           </div>
         </div>
 
@@ -447,18 +426,18 @@ const MyTasks: React.FC = () => {
                     Délai
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
-                    
+
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredTasks.map((task, index) => (
-                  <tr 
-                    key={`${task.id}-${index}`} 
+                  <tr
+                    key={`${task.id}-${index}`}
                     className={`hover:bg-gray-50 transition-colors ${selectedTask?.id === task.id ? 'bg-blue-50' : ''}`}
                     onClick={() => setSelectedTask(task)}
                   >
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4">
                       <strong className="text-gray-900">{task.taskName}</strong>
                       {task.isDelegation && (
                         <span className="ml-2 text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded">
@@ -476,12 +455,11 @@ const MyTasks: React.FC = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       {task.delaiRestant && (
-                        <span className={`font-medium ${
-                          task.delaiRestant === 'Délai dépassé' 
-                            ? 'text-red-600' 
-                            : 'text-orange-600'
-                        }`}>
-                          ⏰ {task.delaiRestant}
+                        <span className={`font-medium ${task.delaiRestant === 'Délai dépassé'
+                          ? 'text-red-600'
+                          : 'text-orange-600'
+                          }`}>
+                          {task.delaiRestant}
                         </span>
                       )}
                     </td>
@@ -540,26 +518,23 @@ const MyTasks: React.FC = () => {
               </div>
 
               {selectedTask.delaiRestant && (
-                <div className={`p-4 rounded-lg ${
-                  selectedTask.delaiRestant === 'Délai dépassé' 
-                    ? 'bg-red-50 border border-red-200' 
-                    : 'bg-orange-50 border border-orange-200'
-                }`}>
+                <div className={`p-4 rounded-lg ${selectedTask.delaiRestant === 'Délai dépassé'
+                  ? 'bg-red-50 border border-red-200'
+                  : 'bg-orange-50 border border-orange-200'
+                  }`}>
                   <div className="flex items-center">
-                    <span className="text-2xl mr-2">⏰</span>
+                    <span className="text-2xl mr-2"></span>
                     <div>
-                      <p className={`font-semibold ${
-                        selectedTask.delaiRestant === 'Délai dépassé' 
-                          ? 'text-red-900' 
-                          : 'text-orange-900'
-                      }`}>
+                      <p className={`font-semibold ${selectedTask.delaiRestant === 'Délai dépassé'
+                        ? 'text-red-900'
+                        : 'text-orange-900'
+                        }`}>
                         {selectedTask.delaiRestant}
                       </p>
-                      <p className={`text-sm ${
-                        selectedTask.delaiRestant === 'Délai dépassé' 
-                          ? 'text-red-700' 
-                          : 'text-orange-700'
-                      }`}>
+                      <p className={`text-sm ${selectedTask.delaiRestant === 'Délai dépassé'
+                        ? 'text-red-700'
+                        : 'text-orange-700'
+                        }`}>
                         {selectedTask.delaiRestant === 'Délai dépassé'
                           ? 'La tâche sera acceptée automatiquement'
                           : 'pour répondre à cette ' + (selectedTask.isDelegation ? 'délégation' : 'affectation')}
@@ -620,9 +595,9 @@ const MyTasks: React.FC = () => {
                 <div>
                   <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Rémunération</h3>
                   <p className="text-gray-700 font-medium">
-                    {selectedTask.isRemunerated 
-                      ? `💰 ${selectedTask.remunerationAmount} MAD` 
-                      : '❌ Non rémunérée'}
+                    {selectedTask.isRemunerated
+                      ? `💰 ${selectedTask.remunerationAmount} MAD`
+                      : 'Non rémunérée'}
                   </p>
                 </div>
 
@@ -635,7 +610,7 @@ const MyTasks: React.FC = () => {
               </div>
 
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h3 className="text-sm font-semibold text-blue-900 mb-2">ℹ️ Informations importantes</h3>
+                <h3 className="text-sm font-semibold text-blue-900 mb-2">Informations importantes</h3>
                 <ul className="text-sm text-blue-800 space-y-1">
                   <li>• Assurez-vous d'être disponible pendant toute la période</li>
                   <li>• Vous recevrez une confirmation par email</li>
@@ -687,7 +662,7 @@ const MyTasks: React.FC = () => {
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-xl font-bold text-gray-900">Refuser la tâche</h3>
             </div>
-            
+
             <div className="p-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Justificatif (minimum 10 caractères)
@@ -729,7 +704,7 @@ const MyTasks: React.FC = () => {
             <div className="p-6 border-b border-gray-200">
               <h3 className="text-xl font-bold text-gray-900">Déléguer la tâche</h3>
             </div>
-            
+
             <div className="p-6 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -180,7 +180,6 @@ const genererPDFRapport = (contenu, idTache) => {
  * Algorithme d'affectation semi-automatique
  */
 export const genererAffectationSemiAutomatique = async (req, res) => {
-  console.log('BODY REÇU:', req.body);
   try {
     const { idTache } = req.body;
     
@@ -201,7 +200,6 @@ export const genererAffectationSemiAutomatique = async (req, res) => {
     
     // Récupérer tous les auditeurs actifs
     let auditeurs = await User.find({ ACTIF: true }).sort({ createdAt: 1 });
-    console.log(auditeurs);
     
     const details = {
       candidatsEvalues: auditeurs.length,
@@ -217,7 +215,6 @@ export const genererAffectationSemiAutomatique = async (req, res) => {
       );
     }
     details.candidatsCompatibles = auditeurs.length;
-    console.log('169', details.candidatsCompatibles);
     
     // Filtrer par compatibilité de grade
     if (tache.GRADES_CONCERNES && tache.GRADES_CONCERNES.length > 0) {
@@ -261,7 +258,6 @@ export const genererAffectationSemiAutomatique = async (req, res) => {
     const auditeursDisponibles = auditeursAvecScore.filter(a => a.disponible);
     details.candidatsDisponibles = auditeursDisponibles.length;
 
-    console.log('213', details.candidatsDisponibles);
     if (auditeursDisponibles.length === 0) {
       return res.status(400).json({ 
         message: "Aucun auditeur disponible pour cette tâche",

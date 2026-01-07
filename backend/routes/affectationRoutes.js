@@ -283,7 +283,7 @@ router.put('/deleguer/:idAuditeur/:idTache', async (req, res) => {
       MODE_AFFECTATION: "Manuel",
       STATUS: "À venir",
       DECISION: "En Attente",
-      ID_AUDITEUR_DELEGUANT: idAuditeur,
+      ID_AUDITEUR_DELEGANT: idAuditeur,
       JUSTIFICATIF_DELEGATION: justificatif,
       DATE_LIMITE_REPONSE_DELEGATION: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h
     });
@@ -297,11 +297,17 @@ router.put('/deleguer/:idAuditeur/:idTache', async (req, res) => {
 
     await affectation.save();
 
+    const auditeurInitial = await User.findOne({ ID: idAuditeur });
+
+    const nomAuditeur = auditeurInitial
+      ? `${auditeurInitial.NOM} ${auditeurInitial.PRENOM}`
+      : "Auditeur inconnu";
+
     // Notification pour l'auditeur délégué
     await Notification.create({
       ID: `NOTIF_${Date.now()}`,
       ID_AUDITEUR: idAuditeurDelegue,
-      MESSAGE: `Une tâche vous a été déléguée par ${idAuditeur}. Vous avez 24h pour répondre.`,
+      MESSAGE: `Une tâche vous a été déléguée par ${nomAuditeur}. Vous avez 24h pour répondre.`,
       TYPE: 'Information',
       LUE: false
     });
@@ -321,7 +327,7 @@ router.put('/deleguer/:idAuditeur/:idTache', async (req, res) => {
       ID_AUDITEUR: [idAuditeur, idAuditeurDelegue],
       ID_TACHE: idTache,
       ACTION: 'Délégation de tâche',
-      DETAILS: `Tâche déléguée de ${idAuditeur} à ${idAuditeurDelegue}. Justificatif: ${justificatif}`,
+      DETAILS: `Tâche déléguée de ${nomAuditeur} à ${auditeurDelegue.NOM} ${auditeurDelegue.PRENOM}. Justificatif: ${justificatif}`,
       DATE: new Date()
     });
 

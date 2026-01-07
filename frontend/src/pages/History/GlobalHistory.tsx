@@ -51,34 +51,32 @@ const GlobalHistory: React.FC = () => {
 
       // Récupérer l'historique avec filtres
       const response = await historiqueAPI.getAll(filters);
-      
-      const historyData = response.data?.success 
-        ? response.data.data 
+
+      const historyData = response.data?.success
+        ? response.data.data
         : response.data;
-      
-      console.log('📋 Historique reçu:', historyData);
-      
+
       setHistory(Array.isArray(historyData) ? historyData : []);
-      
+
       // Charger les rapports PDF pour chaque tâche
       await loadRapportsPDF();
-      
+
       // Calculer les statistiques
       const data = Array.isArray(historyData) ? historyData : [];
       setStats({
         total: data.length,
-        affectations: data.filter((h: GlobalHistoryItem) => 
+        affectations: data.filter((h: GlobalHistoryItem) =>
           h.type === 'Affectation').length,
-        algorithmes: data.filter((h: GlobalHistoryItem) => 
+        algorithmes: data.filter((h: GlobalHistoryItem) =>
           h.type === 'Algorithme' || h.algorithme).length,
-        refus: data.filter((h: GlobalHistoryItem) => 
+        refus: data.filter((h: GlobalHistoryItem) =>
           h.type === 'Refus').length,
-        delegations: data.filter((h: GlobalHistoryItem) => 
+        delegations: data.filter((h: GlobalHistoryItem) =>
           h.type === 'Délégation').length
       });
 
     } catch (err: any) {
-      console.error('❌ Erreur lors du chargement de l\'historique global:', err);
+      console.error('Erreur lors du chargement de l\'historique global:', err);
       setError(err.response?.data?.message || 'Erreur lors du chargement de l\'historique');
       setHistory([]);
     } finally {
@@ -92,26 +90,21 @@ const GlobalHistory: React.FC = () => {
       const affectationsResponse = await affectationAPI.getAll();
       const affectations = affectationsResponse.data;
 
-      console.log('📄 Affectations récupérées:', affectations.length);
-
       const newRapportsMap = new Map<string, RapportPDF>();
-      
+
       affectations.forEach((affectation: any) => {
         if (affectation.RAPPORT && affectation.RAPPORT.filePath) {
           const idTache = affectation.ID_TACHE;
-          
+
           if (idTache) {
             newRapportsMap.set(idTache, affectation.RAPPORT);
-            console.log(`✅ Rapport associé à la tâche: ${idTache}`);
           }
         }
       });
 
       setRapportsMap(newRapportsMap);
-      console.log(`📊 Total rapports chargés: ${newRapportsMap.size}`);
-      console.log('🔑 IDs de tâches avec rapport:', Array.from(newRapportsMap.keys()));
     } catch (err) {
-      console.error('❌ Erreur lors du chargement des rapports PDF:', err);
+      console.error('Erreur lors du chargement des rapports PDF:', err);
     }
   };
 
@@ -144,12 +137,12 @@ const GlobalHistory: React.FC = () => {
   };
 
   const resetFilters = () => {
-    setFilters({ 
-      search: '', 
-      startDate: '', 
-      endDate: '', 
-      status: '', 
-      type: '' 
+    setFilters({
+      search: '',
+      startDate: '',
+      endDate: '',
+      status: '',
+      type: ''
     });
   };
 
@@ -162,7 +155,7 @@ const GlobalHistory: React.FC = () => {
   const downloadPDF = (filePath: string, fileName: string) => {
     const baseURL = 'http://localhost:5000';
     const fullURL = `${baseURL}${filePath}`;
-    
+
     const link = document.createElement('a');
     link.href = fullURL;
     link.download = fileName;
@@ -178,13 +171,7 @@ const GlobalHistory: React.FC = () => {
     }
 
     const rapport = rapportsMap.get(item.idTache);
-    
-    if (rapport) {
-      console.log(`✅ Rapport trouvé pour ${item.taskName} (${item.idTache})`);
-    } else {
-      console.log(`❌ Aucun rapport pour ${item.taskName} (${item.idTache})`);
-    }
-    
+
     return rapport || null;
   };
 
@@ -204,8 +191,8 @@ const GlobalHistory: React.FC = () => {
       ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
     ].join('\n');
 
-    const blob = new Blob(['\uFEFF' + csvContent], { 
-      type: 'text/csv;charset=utf-8;' 
+    const blob = new Blob(['\uFEFF' + csvContent], {
+      type: 'text/csv;charset=utf-8;'
     });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -234,7 +221,7 @@ const GlobalHistory: React.FC = () => {
             onClick={exportToCSV}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
-            📥 Exporter CSV
+            Exporter CSV
           </button>
         </div>
 
@@ -290,7 +277,7 @@ const GlobalHistory: React.FC = () => {
                 onChange={(e) => handleFilterChange('status', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
-               <option value="">Tous</option>
+                <option value="">Tous</option>
                 <option value="En Attente">En Attente</option>
                 <option value="Acceptée">Acceptée</option>
                 <option value="Refusée">Réfusée</option>
@@ -307,12 +294,9 @@ const GlobalHistory: React.FC = () => {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Tous</option>
-                <option value="Affectation">Affectation</option>
-                <option value="Refus">Refus</option>
-                <option value="Délégation">Délégation</option>
-                <option value="Algorithme">Algorithme</option>
-                <option value="Création">Création</option>
-                <option value="Modification">Modification</option>
+                <option value="Manuel">Manuel</option>
+                <option value="Semi-automatisé">Semi-automatisé</option>
+                <option value="Automatisé">Automatisé</option>
               </select>
             </div>
           </div>
@@ -321,7 +305,7 @@ const GlobalHistory: React.FC = () => {
               onClick={resetFilters}
               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
             >
-              🔄 Réinitialiser
+              Réinitialiser
             </button>
           </div>
         </div>
@@ -376,7 +360,7 @@ const GlobalHistory: React.FC = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {history.map((item, index) => {
                   const rapport = getRapportForItem(item);
-                  
+
                   return (
                     <tr key={`${item.id}-${index}`} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 text-gray-900">{item.taskName}</td>
@@ -388,12 +372,12 @@ const GlobalHistory: React.FC = () => {
                         })}
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusBadge(item.status)}`}>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${getStatusBadge(item.status)}`}>
                           {item.status}
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getTypeBadge(item.type)}`}>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ${getTypeBadge(item.type)}`}>
                           {item.type}
                         </span>
                       </td>

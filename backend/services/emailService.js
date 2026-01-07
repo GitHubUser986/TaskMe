@@ -28,27 +28,27 @@ const getEmailTemplate = (type, message) => {
     'Information': {
       subject: '📬 Nouvelle information',
       color: '#3498db',
-      icon: 'ℹ️'
+      icon: ''
     },
     'Echoue': {
-      subject: '⚠️ Notification d\'échec',
+      subject: 'Notification d\'échec',
       color: '#e74c3c',
-      icon: '❌'
+      icon: ''
     },
     'Rappel': {
       subject: '🔔 Rappel important',
       color: '#f39c12',
-      icon: '⏰'
+      icon: ''
     },
     'Succès': {
-      subject: '✅ Opération réussie',
+      subject: 'Opération réussie',
       color: '#2ecc71',
       icon: '✓'
     }
   };
 
   const template = templates[type] || templates['Information'];
-  
+
   return {
     subject: template.subject,
     html: `
@@ -101,7 +101,7 @@ const getEmailTemplate = (type, message) => {
 export const sendNotificationEmail = async (to, type, message, userName = '') => {
   try {
     const { subject, html } = getEmailTemplate(type, message);
-    
+
     const mailOptions = {
       from: `"Système d'Audit" <${process.env.EMAIL_USER}>`,
       to: to,
@@ -113,7 +113,7 @@ export const sendNotificationEmail = async (to, type, message, userName = '') =>
     const info = await transporter.sendMail(mailOptions);
     console.log('Email envoyé avec succès:', info.messageId);
     return { success: true, messageId: info.messageId };
-    
+
   } catch (error) {
     console.error('Erreur lors de l\'envoi de l\'email:', error);
     // On ne veut pas que l'échec d'envoi d'email bloque la création de notification

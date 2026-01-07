@@ -83,7 +83,6 @@ export const login = async (req, res) => {
   try {
 
     const { EMAIL, MOT_DE_PASSE } = req.body;
-    console.log({EMAIL, MOT_DE_PASSE});
 
     if (!EMAIL || !MOT_DE_PASSE) {
       return res.status(400).json({
@@ -96,7 +95,6 @@ export const login = async (req, res) => {
     const user = await User
       .findOne({ EMAIL })
       .select("+MOT_DE_PASSE");
-      console.log({EMAIL, MOT_DE_PASSE});
 
     if (!user) {
       return res.status(401).json({

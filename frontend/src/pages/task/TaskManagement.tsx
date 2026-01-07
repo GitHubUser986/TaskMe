@@ -135,7 +135,7 @@ const TaskManagement: React.FC = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
-    
+
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
       setFormData(prev => ({
@@ -226,12 +226,12 @@ const TaskManagement: React.FC = () => {
         <div className="mb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <h1 className="text-3xl font-bold text-gray-800">Gestion des tâches</h1>
-            
+
             <button
               onClick={() => navigate('/create-task')}
               className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors whitespace-nowrap"
             >
-              ➕ Nouvelle tâche
+              Nouvelle tâche
             </button>
           </div>
 
@@ -268,7 +268,7 @@ const TaskManagement: React.FC = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            
+
             <select
               className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full md:w-56"
               value={filterType}
@@ -405,8 +405,8 @@ const TaskManagement: React.FC = () => {
                 <div>
                   <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Date de début</h3>
                   <p className="text-gray-700">
-                    {new Date(selectedTask.PERIODE_EXECUTION.DATE_DEBUT).toLocaleDateString('fr-FR', { 
-                      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+                    {new Date(selectedTask.PERIODE_EXECUTION.DATE_DEBUT).toLocaleDateString('fr-FR', {
+                      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
                     })}
                   </p>
                 </div>
@@ -414,8 +414,8 @@ const TaskManagement: React.FC = () => {
                 <div>
                   <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Date de fin</h3>
                   <p className="text-gray-700">
-                    {new Date(selectedTask.PERIODE_EXECUTION.DATE_FIN).toLocaleDateString('fr-FR', { 
-                      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+                    {new Date(selectedTask.PERIODE_EXECUTION.DATE_FIN).toLocaleDateString('fr-FR', {
+                      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
                     })}
                   </p>
                 </div>

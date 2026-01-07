@@ -20,9 +20,16 @@ const Dashboard: React.FC = () => {
       };
     }
 
+    // Filtrer les auditeurs ayant au moins 1 heure
+    const auditorsWithHours = data.auditors.filter(a => a.hours > 0);
+
     const totalHoursPerAuditor = data.auditors.reduce((sum, a) => sum + a.hours, 0) / data.auditors.length;
     const maxHours = Math.max(...data.auditors.map(a => a.hours));
-    const minHours = Math.min(...data.auditors.map(a => a.hours));
+    
+    // Calculer le minimum seulement sur les auditeurs avec des heures
+    const minHours = auditorsWithHours.length > 0 
+      ? Math.min(...auditorsWithHours.map(a => a.hours))
+      : 0;
 
     return { totalHoursPerAuditor, maxHours, minHours };
   }, [data]);

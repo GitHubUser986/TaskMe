@@ -19,13 +19,25 @@ const EquityIndicators: React.FC<EquityIndicatorsProps> = ({
   remunerated, 
   total 
 }) => {
+  // Filtrer les auditeurs avec au moins 1 tâche
+  const auditorsWithTasks = auditors.filter(a => a.tasks > 0);
+  const auditorsWithHours = auditors.filter(a => a.hours > 0);
+
   const maxTasks = Math.max(...auditors.map(a => a.tasks));
-  const minTasks = Math.min(...auditors.map(a => a.tasks));
-  const taskDistributionEquity = ((1 - (maxTasks - minTasks) / maxTasks) * 100).toFixed(0);
+  const minTasks = auditorsWithTasks.length > 0
+    ? Math.min(...auditorsWithTasks.map(a => a.tasks))
+    : 0;
+  const taskDistributionEquity = maxTasks > 0
+    ? ((1 - (maxTasks - minTasks) / maxTasks) * 100).toFixed(0)
+    : '100';
   
   const maxHours = Math.max(...auditors.map(a => a.hours));
-  const minHours = Math.min(...auditors.map(a => a.hours));
-  const hourDistributionEquity = ((1 - (maxHours - minHours) / maxHours) * 100).toFixed(0);
+  const minHours = auditorsWithHours.length > 0
+    ? Math.min(...auditorsWithHours.map(a => a.hours))
+    : 0;
+  const hourDistributionEquity = maxHours > 0
+    ? ((1 - (maxHours - minHours) / maxHours) * 100).toFixed(0)
+    : '100';
 
   const remuneratedPercentage = ((remunerated / total) * 100).toFixed(0);
 
