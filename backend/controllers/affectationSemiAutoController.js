@@ -14,7 +14,7 @@ import Notification from '../models/Notification.js';
  */
 const checkAuditeurDisponibilite = async (auditeurId, tache) => {
   const affectationsExistantes = await Affectation.find({
-    ID_AUDITEUR: auditeurId,
+    "ID_AUDITEURS.ID_AUDITEUR": auditeurId,
     STATUS: { $in: ["En cours", "À venir"] }
   });
 
@@ -68,7 +68,7 @@ const checkVehiculeDisponibilite = async (vehiculeId, tache) => {
  */
 const getNombreTachesRemunerees = async (auditeurId) => {
   const affectations = await Affectation.find({
-    ID_AUDITEUR: auditeurId,
+    "ID_AUDITEURS.ID_AUDITEUR": auditeurId,
     STATUS: { $in: ["Terminée", "En cours"] }
   });
 
@@ -365,17 +365,22 @@ export const confirmerAffectationSemiAutomatique = async (req, res) => {
     // Générer le PDF du rapport
     const rapportMetadata = genererPDFRapport(rapport, idTache);
     
+    // Créer le tableau ID_AUDITEURS avec la nouvelle structure
+    const auditeursArray = auditeursIds.map(auditeurId => ({
+      ID_AUDITEUR: auditeurId,
+      DECISION: "En Attente"
+    }));
+    
     // Créer l'affectation avec les métadonnées du rapport
     const nouvelleAffectation = new Affectation({
       ID: `AFF-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
       ID_TACHE: idTache,
-      ID_AUDITEUR: auditeursIds,
+      ID_AUDITEURS: auditeursArray,
       ID_VEHICULE: vehiculesIds || [],
       DATE_AFFECTATION: new Date(),
       MODE_AFFECTATION: "Semi-automatisé",
-      RAPPORT: rapportMetadata, // Métadonnées du PDF
-      STATUS: "À venir",
-      DECISION: "En Attente"
+      RAPPORT: rapportMetadata,
+      STATUS: "À venir"
     });
     
     await nouvelleAffectation.save();
@@ -450,10 +455,13 @@ export const annulerAffectationSemiAutomatique = async (req, res) => {
     // Supprimer l'affectation
     await Affectation.deleteOne({ ID: idAffectation });
     
+    // Extraire les IDs des auditeurs
+    const auditeurIds = affectation.ID_AUDITEURS.map(a => a.ID_AUDITEUR);
+    
     // Créer une entrée historique pour l'annulation
     const historique = new Historique({
       ID: `HIST-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
-      ID_AUDITEUR: affectation.ID_AUDITEUR,
+      ID_AUDITEUR: auditeurIds,
       ID_TACHE: affectation.ID_TACHE,
       DETAILS: `Affectation semi-automatique annulée par l'administrateur`,
       ACTION: "Annulation Affectation"

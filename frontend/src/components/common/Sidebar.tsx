@@ -1,19 +1,74 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, ListTodo, Users, Car, Clock, ChevronDown, ChevronUp, ClipboardCheck } from 'lucide-react';
+import { Home, LayoutDashboard, ListTodo, Users, Car, Clock, ChevronDown, ChevronUp, ClipboardCheck } from 'lucide-react';
 import logo from '../../assets/taskme.png';
 
 const Sidebar: React.FC = () => {
   const [expanded, setExpanded] = useState(false);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const userRole = user.ROLE || 'USER';
 
   const menuItems = [
-    { to: '/', icon: Home, label: 'Accueil' },
-    { to: '/my-tasks', icon: ClipboardCheck, label: 'Mes tâches' },
-    { to: '/tasks', icon: ListTodo, label: 'Gestion des tâches' },
-    { to: '/assignment', icon: ListTodo, label: 'Gestion des affectations' },
-    { to: '/users', icon: Users, label: 'Gestion des utilisateurs' },
-    { to: '/vehicles', icon: Car, label: 'Gestion des véhicules' },
+    {
+      to: '/',
+      icon: Home,
+      label: 'Accueil',
+      roles: ['ADMIN', 'USER'],
+    },
+    {
+      to: '/dashboard',
+      icon: LayoutDashboard,
+      label: 'Dashboard',
+      roles: ['SUPERADMIN'],
+    },
+    {
+      to: '/my-tasks',
+      icon: ClipboardCheck,
+      label: 'Mes tâches',
+      roles: ['SUPERADMIN', 'ADMIN', 'USER'],
+    },
+    {
+      to: '/tasks',
+      icon: ListTodo,
+      label: 'Gestion des tâches',
+      roles: ['SUPERADMIN', 'ADMIN'],
+    },
+    {
+      to: '/assignment',
+      icon: ListTodo,
+      label: 'Gestion des affectations',
+      roles: ['SUPERADMIN', 'ADMIN'],
+    },
+    {
+      to: '/users',
+      icon: Users,
+      label: 'Gestion des utilisateurs',
+      roles: ['SUPERADMIN', 'ADMIN'],
+    },
+    {
+      to: '/vehicles',
+      icon: Car,
+      label: 'Gestion des véhicules',
+      roles: ['SUPERADMIN'],
+    },
   ];
+
+  const historyItems = [
+  {
+    to: '/history/individual',
+    label: 'Historique individuel',
+    roles: ['SUPERADMIN', 'ADMIN', 'USER'],
+  },
+  {
+    to: '/history/global',
+    label: 'Historique global',
+    roles: ['SUPERADMIN', 'ADMIN'],
+  },
+];
+
+  const filteredMenu = menuItems.filter(item =>
+    item.roles.includes(userRole)
+  );
 
   return (
     <div className="w-[260px] min-w-[260px] min-h-screen bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 border-r border-slate-700 shadow-2xl relative overflow-hidden flex-shrink-0">
@@ -29,13 +84,14 @@ const Sidebar: React.FC = () => {
             src={logo} 
             alt="Taskme" 
             className="relative w-50 h-20 mb-3 rounded-lg shadow-xl" 
+            loading="lazy"
           />
         </div>
       </div>
 
       {/* Menu Navigation */}
       <nav className="mt-6 px-4 relative z-10">
-        {menuItems.map((item) => (
+        {filteredMenu.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -83,31 +139,25 @@ const Sidebar: React.FC = () => {
             }`}
           >
             <div className="ml-4 space-y-1 border-l-2 border-slate-700 pl-4">
-              <NavLink
-                to="/history/individual"
-                className={({ isActive }) =>
-                  `block px-4 py-2 rounded-lg text-sm transition-all duration-300 ${
-                    isActive
-                      ? 'bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-white font-semibold border-l-2 border-blue-500'
-                      : 'text-gray-400 hover:text-white hover:bg-white/5'
-                  }`
-                }
-              >
-                Historique individuel
-              </NavLink>
-              <NavLink
-                to="/history/global"
-                className={({ isActive }) =>
-                  `block px-4 py-2 rounded-lg text-sm transition-all duration-300 ${
-                    isActive
-                      ? 'bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-white font-semibold border-l-2 border-blue-500'
-                      : 'text-gray-400 hover:text-white hover:bg-white/5'
-                  }`
-                }
-              >
-                Historique global
-              </NavLink>
+              {historyItems
+                .filter(item => item.roles.includes(userRole))
+                .map(item => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `block px-4 py-2 rounded-lg text-sm transition-all duration-300 ${
+                        isActive
+                          ? 'bg-gradient-to-r from-blue-500/20 to-purple-600/20 text-white font-semibold border-l-2 border-blue-500'
+                          : 'text-gray-400 hover:text-white hover:bg-white/5'
+                      }`
+                    }
+                  >
+                    {item.label}
+                  </NavLink>
+                ))}
             </div>
+
           </div>
         </div>
       </nav>

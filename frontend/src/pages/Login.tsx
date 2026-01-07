@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react';
 import { authAPI } from '../services/api';
+import { getRedirectPath } from '../utils/roleCheck';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
-  
+
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -23,48 +24,49 @@ const LoginPage: React.FC = () => {
     setError(''); // Effacer l'erreur lors de la saisie
   };
 
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setLoading(true);
-  setError('');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-  try {
-    const payload = {
-      EMAIL: formData.email,
-      MOT_DE_PASSE: formData.password
-    };
+    try {
+      const payload = {
+        EMAIL: formData.email,
+        MOT_DE_PASSE: formData.password
+      };
 
-    const response = await authAPI.login(payload);
+      const response = await authAPI.login(payload);
 
-    // Option A : Si la structure est response.data.data
-    if (response.data.success && response.data.data) {
-      const { user, token } = response.data.data;
+      // Option A : Si la structure est response.data.data
+      if (response.data.success && response.data.data) {
+        const { user, token } = response.data.data;
 
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
 
-      if (remember) {
-        localStorage.setItem('rememberedEmail', formData.email);
+        if (remember) {
+          localStorage.setItem('rememberedEmail', formData.email);
+        } else {
+          localStorage.removeItem('rememberedEmail');
+        }
+
+        const redirectPath = getRedirectPath(user.ROLE);
+        navigate(redirectPath);
+
       } else {
-        localStorage.removeItem('rememberedEmail');
-      }
 
-      navigate('/dashboard');
-    
-    } else {
-      
-      setError('Erreur de connexion');
+        setError('Erreur de connexion');
+      }
+    } catch (err: any) {
+
+      setError(
+        err.response?.data?.message ||
+        'Erreur de connexion. Vérifiez vos identifiants.'
+      );
+    } finally {
+      setLoading(false);
     }
-  } catch (err: any) {
-    
-    setError(
-      err.response?.data?.message || 
-      'Erreur de connexion. Vérifiez vos identifiants.'
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // Charger l'email mémorisé au montage du composant
   React.useEffect(() => {
@@ -165,8 +167,8 @@ const handleSubmit = async (e: React.FormEvent) => {
                   Se souvenir de moi
                 </span>
               </label>
-              <a 
-                href="/forgot-password" 
+              <a
+                href="/forgot-password"
                 className="text-sm text-blue-400 hover:text-blue-300 transition-colors font-medium"
               >
                 Mot de passe oublié?
@@ -201,9 +203,9 @@ const handleSubmit = async (e: React.FormEvent) => {
           </div>
 
           <p className="text-center text-gray-400 mt-10">
-            Pas encore de compte? 
-            <a 
-              href="/register" 
+            Pas encore de compte?
+            <a
+              href="/register"
               className="text-blue-400 hover:text-blue-300 ml-1 font-semibold transition-colors"
             >
               S'inscrire

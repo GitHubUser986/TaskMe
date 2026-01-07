@@ -28,7 +28,7 @@ export const register = async (req, res) => {
     } = req.body;
 
     // Validation minimale
-    if (!NOM || !PRENOM || !EMAIL || !MOT_DE_PASSE || !GRADE || !SPECIALITE) {
+    if (!NOM || !PRENOM || !EMAIL || !MOT_DE_PASSE || !GRADE ) {
       return res.status(400).json({
         success: false,
         message: "Tous les champs obligatoires doivent être remplis"

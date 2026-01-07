@@ -77,14 +77,49 @@ const ManualAssignmentInterface = () => {
     }
   }, [selectedTacheId]);
 
-  const fetchTaches = async () => {
+const fetchTaches = async () => {
     try {
-      const response = await tacheAPI.getAll();
-      setTaches(response.data.data.taches);
-    } catch (error) {
-      console.error('Erreur chargement tâches:', error);
-      setError('Impossible de charger les tâches');
-    }
+      // Charger toutes les tâches
+      const responseTaches = await tacheAPI.getAll();
+      
+      // Charger toutes les affectations
+      const responseAffectations = await affectationAPI.getAll();
+      
+      // Compter le nombre d'auditeurs acceptés ou en attente par tâche
+      const auditeursParTache = new Map<string, number>();
+      
+      responseAffectations.data.forEach((affectation: any) => {
+        // Compter seulement les auditeurs avec décision "Acceptée" ou "En Attente"
+        const auditeursValides = affectation.ID_AUDITEUR.filter((_: any, index: number) => {
+          const decision = Array.isArray(affectation.DECISION) 
+            ? affectation.DECISION[index] 
+            : affectation.DECISION;
+          return decision === "Acceptée" || decision === "En Attente";
+        });
+        
+        const count = auditeursParTache.get(affectation.ID_TACHE) || 0;
+        auditeursParTache.set(affectation.ID_TACHE, count + auditeursValides.length);
+      });
+      
+      // Filtrer les tâches :
+      // 1. Tâches sans aucune affectation
+      // 2. Tâches dont le nombre d'auditeurs acceptés/en attente < nombre de places
+      const tachesDisponibles = responseTaches.data.data.taches.filter(
+        (tache: Tache) => {
+          const auditeursAssignes = auditeursParTache.get(tache.ID) || 0;
+          return auditeursAssignes < tache.NOMBRE_PLACES;
+        }
+      );
+      
+      console.log('Tâches chargées:', responseTaches.data.data.taches.length);
+      console.log('Tâches disponibles (places restantes):', tachesDisponibles.length);
+      console.log('Répartition:', Array.from(auditeursParTache.entries()));
+      
+      setTaches(tachesDisponibles);
+    } catch (err) {
+      console.error('Erreur chargement tâches:', err);
+
+    } 
   };
 
   const fetchDataForTask = async (idTache: string) => {

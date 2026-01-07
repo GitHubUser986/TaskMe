@@ -82,7 +82,7 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="page active" id="dashboard">
+    <div className="page active" id="dashboard" >
       <div className="container">
 
         {/* Stats Grid */}

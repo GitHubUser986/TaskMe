@@ -38,12 +38,12 @@ const userSchema = new mongoose.Schema({
   SPECIALITE: {
     type: String,
     enum: [
+      "Auditeur élu",
       "Auditeur pédagogique",
       "Auditeur d'orientation",
       "Auditeur de planification",
       "Auditeur des services financiers"
-    ],
-    required: true
+    ]
   },
   FORMATIONS: { 
     type: [String], 

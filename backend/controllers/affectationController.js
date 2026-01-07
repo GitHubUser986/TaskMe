@@ -14,7 +14,7 @@ import Notification from '../models/Notification.js'
  */
 const checkAuditeurDisponibilite = async (auditeurId, tache) => {
   const affectationsExistantes = await Affectation.find({
-    ID_AUDITEUR: auditeurId,
+    "ID_AUDITEURS.ID_AUDITEUR": auditeurId,
     STATUS: { $in: ["En cours", "À venir"] }
   });
 
@@ -374,17 +374,22 @@ export const creerAffectationManuelle = async (req, res) => {
     // Générer le PDF et obtenir les métadonnées
     const rapportMetadata = genererPDF(rapportTexte, idTache);
     
+    // Créer le tableau ID_AUDITEURS avec la nouvelle structure
+    const auditeursArray = auditeursIds.map(auditeurId => ({
+      ID_AUDITEUR: auditeurId,
+      DECISION: "En Attente"
+    }));
+    
     // Créer l'affectation avec les métadonnées du rapport
     const nouvelleAffectation = new Affectation({
       ID: `AFF-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
       ID_TACHE: idTache,
-      ID_AUDITEUR: auditeursIds,
+      ID_AUDITEURS: auditeursArray,
       ID_VEHICULE: vehiculesIds || [],
       DATE_AFFECTATION: new Date(),
       MODE_AFFECTATION: "Manuel",
-      RAPPORT: rapportMetadata, // Objet avec métadonnées au lieu du texte
-      STATUS: "À venir",
-      DECISION: "En Attente"
+      RAPPORT: rapportMetadata,
+      STATUS: "À venir"
     });
     
     await nouvelleAffectation.save();
@@ -419,8 +424,8 @@ export const creerAffectationManuelle = async (req, res) => {
       success: true,
       message: "Affectation créée avec succès",
       affectation: nouvelleAffectation,
-      rapport: rapportMetadata, // Renvoyer les métadonnées
-      rapportTexte: rapportTexte, // Optionnel: le texte si besoin
+      rapport: rapportMetadata,
+      rapportTexte: rapportTexte,
       contraintesNonRespectees,
       historiqueId: historique.ID
     });

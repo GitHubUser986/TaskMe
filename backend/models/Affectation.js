@@ -5,7 +5,23 @@ const affectationSchema = new mongoose.Schema({
   ID: { type: String, required: true, unique: true },
   ID_TACHE: { type: String, required: true },
   ID_VEHICULE: { type: [String], default: null },
-  ID_AUDITEUR: { type: [String], required: true },
+  ID_AUDITEURS: [
+    {
+      ID_AUDITEUR: { type: String, required: true },
+      DECISION: { 
+        type: String, 
+        enum: ["Acceptée", "Refusée", "Déléguée", "En Attente"], 
+        required: true,
+        default: "En Attente"
+      },
+      JUSTIFICATIF_REFUS: { type: String },
+      ID_AUDITEUR_DELEGUE: { type: String },
+      JUSTIFICATIF_DELEGATION: { type: String },
+      DATE_LIMITE_REPONSE_DELEGATION: { type: Date },
+      DATE_REPONSE: { type: Date },
+      REPONSE_DANS_DELAI: { type: Boolean }
+    }
+  ],
   DATE_AFFECTATION: { type: Date, required: true },
   MODE_AFFECTATION: { 
     type: String, 
@@ -17,21 +33,11 @@ const affectationSchema = new mongoose.Schema({
     enum: ["En cours", "Terminée", "À venir"], 
     required: true 
   },
-  DECISION: { 
-    type: String, 
-    enum: ["Acceptée", "Refusée", "Déléguée", "En Attente"], 
-    required: true 
-  },
-  JUSTIFICATIF_REFUS: String,
-  ID_AUDITEUR_DELEGUE: [String], // optionnel si délégation
-  JUSTIFICATIF_DELEGATION: String,
-  DATE_LIMITE_REPONSE_DELEGATION: Date,
-  ID_AUDITEUR_DELEGANT: String,
   RAPPORT: {
     fileName: { type: String },
-    filePath: { type: String },     // chemin(/uploads/rapports/fileName) ou URL
+    filePath: { type: String },
     mimeType: { type: String, default: "application/pdf" }, 
-    size: { type: Number },         // taille en octets
+    size: { type: Number },
     createdAt: { type: Date }
   }
 },

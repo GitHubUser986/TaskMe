@@ -31,6 +31,37 @@ const calculateTaskHours = (tache) => {
 };
 
 /**
+ * Extrait tous les IDs d'auditeurs d'une affectation
+ */
+const extractAuditeurIds = (affectation) => {
+  if (!affectation.ID_AUDITEURS || !Array.isArray(affectation.ID_AUDITEURS)) {
+    return [];
+  }
+  return affectation.ID_AUDITEURS.map(a => a.ID_AUDITEUR);
+};
+
+/**
+ * Vérifie si un auditeur est dans une affectation
+ */
+const isAuditeurInAffectation = (affectation, auditeurId) => {
+  if (!affectation.ID_AUDITEURS || !Array.isArray(affectation.ID_AUDITEURS)) {
+    return false;
+  }
+  return affectation.ID_AUDITEURS.some(a => a.ID_AUDITEUR === auditeurId);
+};
+
+/**
+ * Obtient la décision d'un auditeur spécifique dans une affectation
+ */
+const getAuditeurDecision = (affectation, auditeurId) => {
+  if (!affectation.ID_AUDITEURS || !Array.isArray(affectation.ID_AUDITEURS)) {
+    return null;
+  }
+  const auditeurData = affectation.ID_AUDITEURS.find(a => a.ID_AUDITEUR === auditeurId);
+  return auditeurData?.DECISION || null;
+};
+
+/**
  * GET /api/dashboard/stats
  * Récupère toutes les statistiques pour le dashboard
  */
@@ -59,11 +90,28 @@ export const getDashboardStats = async (req, res) => {
     const statsParAuditeur = auditeurs.map(auditeur => {
       // Récupérer les affectations où cet auditeur est impliqué
       const affectationsAuditeur = affectations.filter(aff => 
-        aff.ID_AUDITEUR.includes(auditeur.ID)
+        isAuditeurInAffectation(aff, auditeur.ID)
       );
 
       // Calculer le nombre de tâches
       const nombreTaches = affectationsAuditeur.length;
+
+      // Calculer le nombre de tâches par décision
+      const tachesAcceptees = affectationsAuditeur.filter(aff => 
+        getAuditeurDecision(aff, auditeur.ID) === "Acceptée"
+      ).length;
+
+      const tachesEnAttente = affectationsAuditeur.filter(aff => 
+        getAuditeurDecision(aff, auditeur.ID) === "En Attente"
+      ).length;
+
+      const tachesRefusees = affectationsAuditeur.filter(aff => 
+        getAuditeurDecision(aff, auditeur.ID) === "Refusée"
+      ).length;
+
+      const tachesDelegues = affectationsAuditeur.filter(aff => 
+        getAuditeurDecision(aff, auditeur.ID) === "Déléguée"
+      ).length;
 
       // Calculer le volume horaire total pour cet auditeur
       const volumeHoraire = affectationsAuditeur.reduce((sum, aff) => {
@@ -91,7 +139,11 @@ export const getDashboardStats = async (req, res) => {
         tasks: nombreTaches,
         hours: volumeHoraire,
         remuneratedTasks: tachesRemunerees,
-        nonRemuneratedTasks: tachesNonRemunerees
+        nonRemuneratedTasks: tachesNonRemunerees,
+        acceptedTasks: tachesAcceptees,
+        pendingTasks: tachesEnAttente,
+        refusedTasks: tachesRefusees,
+        delegatedTasks: tachesDelegues
       };
     });
 
@@ -124,7 +176,7 @@ export const getTasksDistribution = async (req, res) => {
 
     // Grouper par type
     const distribution = taches.reduce((acc, tache) => {
-      const type = tache.TYPE;
+      const type = tache.TYPE || 'Non spécifié';
       if (!acc[type]) {
         acc[type] = 0;
       }
@@ -152,6 +204,10 @@ export const getMonthlyStats = async (req, res) => {
     const monthlyData = {};
     
     taches.forEach(tache => {
+      if (!tache.PERIODE_EXECUTION?.DATE_DEBUT) {
+        return;
+      }
+
       const month = new Date(tache.PERIODE_EXECUTION.DATE_DEBUT).toLocaleDateString('fr-FR', { 
         year: 'numeric', 
         month: 'short' 
@@ -194,43 +250,72 @@ export const getEquityIndicators = async (req, res) => {
     // Calculer les indicateurs par auditeur
     const auditeurStats = auditeurs.map(auditeur => {
       const affectationsAuditeur = affectations.filter(aff => 
-        aff.ID_AUDITEUR.includes(auditeur.ID)
+        isAuditeurInAffectation(aff, auditeur.ID)
       );
 
       const nombreTaches = affectationsAuditeur.length;
       
+      // Compter uniquement les tâches acceptées pour l'équité
+      const nombreTachesAcceptees = affectationsAuditeur.filter(aff => 
+        getAuditeurDecision(aff, auditeur.ID) === "Acceptée"
+      ).length;
+
       const volumeHoraire = affectationsAuditeur.reduce((sum, aff) => {
         const tache = taches.find(t => t.ID === aff.ID_TACHE);
-        if (tache) {
+        const decision = getAuditeurDecision(aff, auditeur.ID);
+        
+        // Ne compter les heures que pour les tâches acceptées
+        if (tache && decision === "Acceptée") {
           return sum + calculateTaskHours(tache);
         }
         return sum;
       }, 0);
 
-      return { nombreTaches, volumeHoraire };
+      return { 
+        nombreTaches, 
+        nombreTachesAcceptees,
+        volumeHoraire 
+      };
     });
 
-    // Calculer les écarts
-    const tachesArray = auditeurStats.map(s => s.nombreTaches);
+    // Calculer les écarts basés sur les tâches acceptées
+    const tachesArray = auditeurStats.map(s => s.nombreTachesAcceptees);
     const heuresArray = auditeurStats.map(s => s.volumeHoraire);
 
     const maxTaches = Math.max(...tachesArray, 0);
-    const minTaches = Math.min(...tachesArray, 0);
+    const minTaches = Math.min(...tachesArray, Infinity);
+    const avgTaches = tachesArray.length > 0 
+      ? tachesArray.reduce((a, b) => a + b, 0) / tachesArray.length 
+      : 0;
+
     const maxHeures = Math.max(...heuresArray, 0);
-    const minHeures = Math.min(...heuresArray, 0);
+    const minHeures = Math.min(...heuresArray, Infinity);
+    const avgHeures = heuresArray.length > 0 
+      ? heuresArray.reduce((a, b) => a + b, 0) / heuresArray.length 
+      : 0;
+
+    // Gérer le cas où min est Infinity (aucune tâche)
+    const minTachesValue = minTaches === Infinity ? 0 : minTaches;
+    const minHeuresValue = minHeures === Infinity ? 0 : minHeures;
 
     const equityData = {
       taskDistribution: {
         max: maxTaches,
-        min: minTaches,
-        gap: maxTaches - minTaches,
-        equityPercentage: maxTaches > 0 ? ((1 - (maxTaches - minTaches) / maxTaches) * 100).toFixed(0) : 100
+        min: minTachesValue,
+        avg: Math.round(avgTaches * 10) / 10,
+        gap: maxTaches - minTachesValue,
+        equityPercentage: maxTaches > 0 
+          ? ((1 - (maxTaches - minTachesValue) / maxTaches) * 100).toFixed(0) 
+          : 100
       },
       hourDistribution: {
         max: maxHeures,
-        min: minHeures,
-        gap: maxHeures - minHeures,
-        equityPercentage: maxHeures > 0 ? ((1 - (maxHeures - minHeures) / maxHeures) * 100).toFixed(0) : 100
+        min: minHeuresValue,
+        avg: Math.round(avgHeures * 10) / 10,
+        gap: maxHeures - minHeuresValue,
+        equityPercentage: maxHeures > 0 
+          ? ((1 - (maxHeures - minHeuresValue) / maxHeures) * 100).toFixed(0) 
+          : 100
       }
     };
 
@@ -238,6 +323,68 @@ export const getEquityIndicators = async (req, res) => {
 
   } catch (error) {
     console.error('Erreur getEquityIndicators:', error);
+    res.status(500).json(errorResponse(error.message));
+  }
+};
+
+/**
+ * GET /api/dashboard/decision-stats
+ * Récupère les statistiques des décisions des auditeurs
+ */
+export const getDecisionStats = async (req, res) => {
+  try {
+    const affectations = await Affectation.find();
+    
+    let totalDecisions = 0;
+    let acceptees = 0;
+    let refusees = 0;
+    let deleguees = 0;
+    let enAttente = 0;
+
+    // Compter toutes les décisions individuelles
+    affectations.forEach(affectation => {
+      if (affectation.ID_AUDITEURS && Array.isArray(affectation.ID_AUDITEURS)) {
+        affectation.ID_AUDITEURS.forEach(auditeur => {
+          totalDecisions++;
+          switch (auditeur.DECISION) {
+            case "Acceptée":
+              acceptees++;
+              break;
+            case "Refusée":
+              refusees++;
+              break;
+            case "Déléguée":
+              deleguees++;
+              break;
+            case "En Attente":
+              enAttente++;
+              break;
+          }
+        });
+      }
+    });
+
+    const decisionStats = {
+      total: totalDecisions,
+      accepted: acceptees,
+      refused: refusees,
+      delegated: deleguees,
+      pending: enAttente,
+      acceptanceRate: totalDecisions > 0 
+        ? ((acceptees / totalDecisions) * 100).toFixed(1) 
+        : 0,
+      refusalRate: totalDecisions > 0 
+        ? ((refusees / totalDecisions) * 100).toFixed(1) 
+        : 0,
+      delegationRate: totalDecisions > 0 
+        ? ((deleguees / totalDecisions) * 100).toFixed(1) 
+        : 0
+    };
+
+    res.json(successResponse(decisionStats, "Statistiques des décisions récupérées avec succès"));
+
+  } catch (error) {
+    console.error('Erreur getDecisionStats:', error);
     res.status(500).json(errorResponse(error.message));
   }
 };

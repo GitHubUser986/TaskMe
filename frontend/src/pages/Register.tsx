@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, User, Briefcase, GraduationCap, Shield, AlertCircle, CheckCircle } from 'lucide-react';
 import { authAPI } from '../services/api';
@@ -31,7 +31,32 @@ const RegisterPage: React.FC = () => {
   ];
 
   const grades = ['A', 'B', 'C'];
-  const roles = ['USER', 'ADMIN', 'SUPERADMIN'];
+  const roles = [
+    { value: 'USER', label: 'Utilisateur' },
+    { value: 'ADMIN', label: 'Administrateur' },
+    { value: 'SUPERADMIN', label: 'Super Administrateur' }
+  ];
+
+  // Gérer automatiquement la spécialité en fonction du rôle
+  useEffect(() => {
+    if (formData.ROLE === 'ADMIN') {
+      setFormData(prev => ({
+        ...prev,
+        SPECIALITE: 'Auditeur élu'
+      }));
+    } else if (formData.ROLE === 'SUPERADMIN') {
+      setFormData(prev => ({
+        ...prev,
+        SPECIALITE: ''
+      }));
+    } else if (formData.ROLE === 'USER' && formData.SPECIALITE === 'Auditeur élu') {
+      // Si on revient à USER et que la spécialité était "Auditeur élu", on la réinitialise
+      setFormData(prev => ({
+        ...prev,
+        SPECIALITE: ''
+      }));
+    }
+  }, [formData.ROLE]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({
@@ -43,8 +68,14 @@ const RegisterPage: React.FC = () => {
 
   const validateForm = () => {
     // Validation des champs requis
-    if (!formData.NOM || !formData.PRENOM || !formData.EMAIL || !formData.MOT_DE_PASSE || !formData.SPECIALITE) {
+    if (!formData.NOM || !formData.PRENOM || !formData.EMAIL || !formData.MOT_DE_PASSE) {
       setError('Tous les champs obligatoires doivent être remplis');
+      return false;
+    }
+
+    // Validation de la spécialité selon le rôle
+    if (formData.ROLE === 'USER' && !formData.SPECIALITE) {
+      setError('La spécialité est obligatoire pour les utilisateurs');
       return false;
     }
 
@@ -95,7 +126,7 @@ const RegisterPage: React.FC = () => {
         MOT_DE_PASSE: formData.MOT_DE_PASSE,
         ROLE: formData.ROLE,
         GRADE: formData.GRADE,
-        SPECIALITE: formData.SPECIALITE
+        SPECIALITE: formData.ROLE === 'SUPERADMIN' ? '' : formData.SPECIALITE
       };
 
       const response = await authAPI.register(registrationData);
@@ -220,26 +251,61 @@ const RegisterPage: React.FC = () => {
               />
             </div>
 
+            {/* Rôle */}
+            <div className="space-y-2">
+              <label className="text-gray-300 font-medium text-sm flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Rôle *
+              </label>
+              <select
+                name="ROLE"
+                className="w-full px-4 py-3 bg-slate-900/50 border-2 border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                value={formData.ROLE}
+                onChange={handleChange}
+                disabled={loading}
+              >
+                {roles.map((role) => (
+                  <option key={role.value} value={role.value}>{role.label}</option>
+                ))}
+              </select>
+            </div>
+
             {/* Spécialité et Grade */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-gray-300 font-medium text-sm flex items-center gap-2">
                   <Briefcase className="w-4 h-4" />
-                  Spécialité *
+                  Spécialité {formData.ROLE === 'USER' && '*'}
                 </label>
-                <select
-                  name="SPECIALITE"
-                  className="w-full px-4 py-3 bg-slate-900/50 border-2 border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  value={formData.SPECIALITE}
-                  onChange={handleChange}
-                  required
-                  disabled={loading}
-                >
-                  <option value="">Sélectionner...</option>
-                  {specialites.map((spec) => (
-                    <option key={spec} value={spec}>{spec}</option>
-                  ))}
-                </select>
+                {formData.ROLE === 'ADMIN' ? (
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 bg-slate-700/50 border-2 border-slate-600 rounded-xl text-gray-400 cursor-not-allowed"
+                    value="Auditeur élu"
+                    disabled
+                  />
+                ) : formData.ROLE === 'SUPERADMIN' ? (
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 bg-slate-700/50 border-2 border-slate-600 rounded-xl text-gray-400 cursor-not-allowed"
+                    value="Aucune spécialité"
+                    disabled
+                  />
+                ) : (
+                  <select
+                    name="SPECIALITE"
+                    className="w-full px-4 py-3 bg-slate-900/50 border-2 border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    value={formData.SPECIALITE}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                  >
+                    <option value="">Sélectionner...</option>
+                    {specialites.map((spec) => (
+                      <option key={spec} value={spec}>{spec}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -260,25 +326,6 @@ const RegisterPage: React.FC = () => {
                   ))}
                 </select>
               </div>
-            </div>
-
-            {/* Rôle */}
-            <div className="space-y-2">
-              <label className="text-gray-300 font-medium text-sm flex items-center gap-2">
-                <Shield className="w-4 h-4" />
-                Rôle
-              </label>
-              <select
-                name="ROLE"
-                className="w-full px-4 py-3 bg-slate-900/50 border-2 border-slate-600 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                value={formData.ROLE}
-                onChange={handleChange}
-                disabled={loading}
-              >
-                {roles.map((role) => (
-                  <option key={role} value={role}>{role}</option>
-                ))}
-              </select>
             </div>
 
             {/* Mot de passe */}

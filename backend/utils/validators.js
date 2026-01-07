@@ -53,16 +53,15 @@ export const validateRegister = [
   .withMessage('Le grade doit être A, B ou C'),
 
 body('SPECIALITE')
-  .notEmpty()
-  .withMessage('La spécialité est requise')
+  .optional({ nullable: true })
   .isIn([
+    "Auditeur élu",
     "Auditeur pédagogique",
     "Auditeur d'orientation",
     "Auditeur de planification",
     "Auditeur des services financiers"
   ])
   .withMessage('Spécialité invalide'),
-
   
   handleValidationErrors
 ];

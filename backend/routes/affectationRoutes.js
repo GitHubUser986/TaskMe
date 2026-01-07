@@ -33,7 +33,9 @@ router.get('/', async (req, res) => {
 // GET affectation by ID_AUDITEUR
 router.get('/:idAuditeur', async (req, res) => {
     try {
-        const affectation = await Affectation.findOne({ ID_AUDITEUR: req.params.idAuditeur });
+        const affectation = await Affectation.findOne({ 
+          "ID_AUDITEURS.ID_AUDITEUR": req.params.idAuditeur 
+        });
         if (!affectation) return res.status(404).json({ message: "Affectation not found" });
         res.json(affectation);
     } catch (error) {
@@ -80,11 +82,11 @@ router.post('/', async (req, res) => {
     }
 });
 
-// PUT UPDATE DECISION AFFECTATION
+// PUT UPDATE DECISION AFFECTATION (deprecated - use specific endpoints)
 router.put('/:idAuditeur', async (req, res) => {
     try {
         const updatedAffectation = await Affectation.findOneAndUpdate(
-            { ID_AUDITEUR: req.params.idAuditeur }, 
+            { "ID_AUDITEURS.ID_AUDITEUR": req.params.idAuditeur }, 
             req.body, 
             { new: true }
         );
@@ -105,23 +107,35 @@ router.get("/mytasks/:userId", async (req, res) => {
       return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
 
+    // Trouver toutes les affectations où l'utilisateur est un auditeur
     const affectations = await Affectation.find(
-      { ID_AUDITEUR: user.ID },
-      { ID_TACHE: 1, _id: 0 }
+      { "ID_AUDITEURS.ID_AUDITEUR": user.ID }
     );
 
-    const taskIds = affectations.map(a => a.ID_TACHE);
+    const result = [];
 
-    if (taskIds.length === 0) {
-      return res.json([]);
+    for (const affectation of affectations) {
+      // Trouver la décision spécifique de cet auditeur
+      const auditeurData = affectation.ID_AUDITEURS.find(
+        a => a.ID_AUDITEUR === user.ID
+      );
+
+      const tache = await Tache.findOne(
+        { ID: affectation.ID_TACHE },
+        { ID: 1, NOM: 1, _id: 0 }
+      );
+
+      if (tache) {
+        result.push({
+          ID: tache.ID,
+          NOM: tache.NOM,
+          DECISION: auditeurData?.DECISION || "En Attente",
+          AFFECTATION_ID: affectation.ID
+        });
+      }
     }
 
-    const taches = await Tache.find(
-      { ID: { $in: taskIds } },
-      { ID: 1, NOM: 1, _id: 0 }
-    );
-
-    res.json(taches);
+    res.json(result);
 
   } catch (error) {
     console.error("Erreur mytasks :", error);
@@ -136,7 +150,7 @@ router.put('/accepter/:idAuditeur/:idTache', async (req, res) => {
 
     const affectation = await Affectation.findOne({
       ID_TACHE: idTache,
-      ID_AUDITEUR: idAuditeur
+      "ID_AUDITEURS.ID_AUDITEUR": idAuditeur
     });
 
     if (!affectation) {
@@ -148,9 +162,28 @@ router.put('/accepter/:idAuditeur/:idTache', async (req, res) => {
     const maintenant = new Date();
     const delaiHeures = (maintenant - dateAffectation) / (1000 * 60 * 60);
 
-    affectation.DECISION = "Acceptée";
-    affectation.STATUS = "En cours";
-    affectation.REPONSE_DANS_DELAI = delaiHeures <= 24;
+    // Trouver l'index de l'auditeur dans le tableau
+    const auditeurIndex = affectation.ID_AUDITEURS.findIndex(
+      a => a.ID_AUDITEUR === idAuditeur
+    );
+
+    if (auditeurIndex === -1) {
+      return res.status(404).json({ message: "Auditeur non trouvé dans cette affectation" });
+    }
+
+    // Mettre à jour la décision de cet auditeur spécifique
+    affectation.ID_AUDITEURS[auditeurIndex].DECISION = "Acceptée";
+    affectation.ID_AUDITEURS[auditeurIndex].DATE_REPONSE = new Date();
+    affectation.ID_AUDITEURS[auditeurIndex].REPONSE_DANS_DELAI = delaiHeures <= 24;
+
+    // Vérifier si tous les auditeurs ont accepté
+    const tousAcceptes = affectation.ID_AUDITEURS.every(
+      a => a.DECISION === "Acceptée"
+    );
+
+    if (tousAcceptes) {
+      affectation.STATUS = "En cours";
+    }
 
     await affectation.save();
 
@@ -200,15 +233,26 @@ router.put('/refuser/:idAuditeur/:idTache', async (req, res) => {
 
     const affectation = await Affectation.findOne({
       ID_TACHE: idTache,
-      ID_AUDITEUR: idAuditeur
+      "ID_AUDITEURS.ID_AUDITEUR": idAuditeur
     });
 
     if (!affectation) {
       return res.status(404).json({ message: "Affectation non trouvée" });
     }
 
-    affectation.DECISION = "Refusée";
-    affectation.JUSTIFICATIF_REFUS = justificatif;
+    // Trouver l'index de l'auditeur
+    const auditeurIndex = affectation.ID_AUDITEURS.findIndex(
+      a => a.ID_AUDITEUR === idAuditeur
+    );
+
+    if (auditeurIndex === -1) {
+      return res.status(404).json({ message: "Auditeur non trouvé dans cette affectation" });
+    }
+
+    // Mettre à jour la décision
+    affectation.ID_AUDITEURS[auditeurIndex].DECISION = "Refusée";
+    affectation.ID_AUDITEURS[auditeurIndex].JUSTIFICATIF_REFUS = justificatif;
+    affectation.ID_AUDITEURS[auditeurIndex].DATE_REPONSE = new Date();
 
     await affectation.save();
 
@@ -266,39 +310,39 @@ router.put('/deleguer/:idAuditeur/:idTache', async (req, res) => {
 
     const affectation = await Affectation.findOne({
       ID_TACHE: idTache,
-      ID_AUDITEUR: idAuditeur
+      "ID_AUDITEURS.ID_AUDITEUR": idAuditeur
     });
 
     if (!affectation) {
       return res.status(404).json({ message: "Affectation non trouvée" });
     }
 
-    // Créer une nouvelle affectation pour l'auditeur délégué
-    const nouvelleAffectation = new Affectation({
-      ID: `AFF_DELEG_${Date.now()}`,
-      ID_TACHE: idTache,
-      ID_VEHICULE: affectation.ID_VEHICULE,
-      ID_AUDITEUR: [idAuditeurDelegue],
-      DATE_AFFECTATION: new Date(),
-      MODE_AFFECTATION: "Manuel",
-      STATUS: "À venir",
+    // Trouver l'index de l'auditeur
+    const auditeurIndex = affectation.ID_AUDITEURS.findIndex(
+      a => a.ID_AUDITEUR === idAuditeur
+    );
+
+    if (auditeurIndex === -1) {
+      return res.status(404).json({ message: "Auditeur non trouvé dans cette affectation" });
+    }
+
+    // Mettre à jour l'auditeur qui délègue
+    affectation.ID_AUDITEURS[auditeurIndex].DECISION = "Déléguée";
+    affectation.ID_AUDITEURS[auditeurIndex].ID_AUDITEUR_DELEGUE = idAuditeurDelegue;
+    affectation.ID_AUDITEURS[auditeurIndex].JUSTIFICATIF_DELEGATION = justificatif;
+    affectation.ID_AUDITEURS[auditeurIndex].DATE_LIMITE_REPONSE_DELEGATION = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    affectation.ID_AUDITEURS[auditeurIndex].DATE_REPONSE = new Date();
+
+    // Ajouter le nouvel auditeur délégué au tableau
+    affectation.ID_AUDITEURS.push({
+      ID_AUDITEUR: idAuditeurDelegue,
       DECISION: "En Attente",
-      ID_AUDITEUR_DELEGANT: idAuditeur,
-      JUSTIFICATIF_DELEGATION: justificatif,
-      DATE_LIMITE_REPONSE_DELEGATION: new Date(Date.now() + 24 * 60 * 60 * 1000) // 24h
+      DATE_LIMITE_REPONSE_DELEGATION: new Date(Date.now() + 24 * 60 * 60 * 1000)
     });
-
-    await nouvelleAffectation.save();
-
-    // Mettre à jour l'affectation originale
-    affectation.DECISION = "Déléguée";
-    affectation.ID_AUDITEUR_DELEGUE = [idAuditeurDelegue];
-    affectation.JUSTIFICATIF_DELEGATION = justificatif;
 
     await affectation.save();
 
     const auditeurInitial = await User.findOne({ ID: idAuditeur });
-
     const nomAuditeur = auditeurInitial
       ? `${auditeurInitial.NOM} ${auditeurInitial.PRENOM}`
       : "Auditeur inconnu";
@@ -333,8 +377,7 @@ router.put('/deleguer/:idAuditeur/:idTache', async (req, res) => {
 
     res.json({
       message: "Tâche déléguée avec succès. L'auditeur désigné a 24h pour accepter.",
-      affectationOriginale: affectation,
-      nouvelleDelegation: nouvelleAffectation
+      affectation
     });
 
   } catch (error) {
@@ -350,18 +393,40 @@ router.put('/delegation/accepter/:idAuditeur/:idTache', async (req, res) => {
 
     const affectation = await Affectation.findOne({
       ID_TACHE: idTache,
-      ID_AUDITEUR: idAuditeur,
-      ID_AUDITEUR_DELEGANT: { $exists: true }
+      "ID_AUDITEURS.ID_AUDITEUR": idAuditeur
     });
 
     if (!affectation) {
       return res.status(404).json({ message: "Délégation non trouvée" });
     }
 
-    affectation.DECISION = "Acceptée";
-    affectation.STATUS = "En cours";
+    // Trouver l'auditeur délégué
+    const auditeurIndex = affectation.ID_AUDITEURS.findIndex(
+      a => a.ID_AUDITEUR === idAuditeur && a.DATE_LIMITE_REPONSE_DELEGATION
+    );
+
+    if (auditeurIndex === -1) {
+      return res.status(404).json({ message: "Délégation non trouvée pour cet auditeur" });
+    }
+
+    affectation.ID_AUDITEURS[auditeurIndex].DECISION = "Acceptée";
+    affectation.ID_AUDITEURS[auditeurIndex].DATE_REPONSE = new Date();
+
+    // Vérifier si tous ont accepté
+    const tousAcceptes = affectation.ID_AUDITEURS.every(
+      a => a.DECISION === "Acceptée" || a.DECISION === "Déléguée"
+    );
+
+    if (tousAcceptes) {
+      affectation.STATUS = "En cours";
+    }
 
     await affectation.save();
+
+    // Trouver l'auditeur qui a délégué
+    const auditeurDelegant = affectation.ID_AUDITEURS.find(
+      a => a.ID_AUDITEUR_DELEGUE === idAuditeur
+    );
 
     // Notifications
     await Notification.create({
@@ -372,13 +437,15 @@ router.put('/delegation/accepter/:idAuditeur/:idTache', async (req, res) => {
       LUE: false
     });
 
-    await Notification.create({
-      ID: `NOTIF_${Date.now() + 1}`,
-      ID_AUDITEUR: affectation.ID_AUDITEUR_DELEGANT,
-      MESSAGE: `Votre délégation a été acceptée par l'auditeur`,
-      TYPE: 'Succès',
-      LUE: false
-    });
+    if (auditeurDelegant) {
+      await Notification.create({
+        ID: `NOTIF_${Date.now() + 1}`,
+        ID_AUDITEUR: auditeurDelegant.ID_AUDITEUR,
+        MESSAGE: `Votre délégation a été acceptée par l'auditeur`,
+        TYPE: 'Succès',
+        LUE: false
+      });
+    }
 
     // Historique
     await Historique.create({
@@ -408,34 +475,46 @@ router.put('/delegation/refuser/:idAuditeur/:idTache', async (req, res) => {
 
     const affectation = await Affectation.findOne({
       ID_TACHE: idTache,
-      ID_AUDITEUR: idAuditeur,
-      ID_AUDITEUR_DELEGANT: { $exists: true }
+      "ID_AUDITEURS.ID_AUDITEUR": idAuditeur
     });
 
     if (!affectation) {
       return res.status(404).json({ message: "Délégation non trouvée" });
     }
 
-    const idAuditeurDelegant = affectation.ID_AUDITEUR_DELEGANT;
+    // Trouver l'auditeur délégué
+    const auditeurIndex = affectation.ID_AUDITEURS.findIndex(
+      a => a.ID_AUDITEUR === idAuditeur && a.DATE_LIMITE_REPONSE_DELEGATION
+    );
+
+    if (auditeurIndex === -1) {
+      return res.status(404).json({ message: "Délégation non trouvée pour cet auditeur" });
+    }
+
+    // Trouver l'auditeur qui a délégué
+    const auditeurDelegantIndex = affectation.ID_AUDITEURS.findIndex(
+      a => a.ID_AUDITEUR_DELEGUE === idAuditeur
+    );
 
     // Marquer la délégation comme refusée
-    affectation.DECISION = "Refusée";
-    affectation.STATUS = "Terminée";
+    affectation.ID_AUDITEURS[auditeurIndex].DECISION = "Refusée";
+    affectation.ID_AUDITEURS[auditeurIndex].DATE_REPONSE = new Date();
+    affectation.ID_AUDITEURS[auditeurIndex].JUSTIFICATIF_REFUS = "Délégation refusée";
+
+    // Supprimer l'auditeur délégué du tableau
+    affectation.ID_AUDITEURS.splice(auditeurIndex, 1);
+
+    // Remettre l'auditeur initial comme refusé
+    if (auditeurDelegantIndex !== -1) {
+      affectation.ID_AUDITEURS[auditeurDelegantIndex].DECISION = "Refusée";
+      affectation.ID_AUDITEURS[auditeurDelegantIndex].JUSTIFICATIF_REFUS = "Délégation refusée par l'auditeur désigné";
+    }
 
     await affectation.save();
 
-    // Remettre l'affectation originale comme refusée par l'auditeur initial
-    const affectationOriginale = await Affectation.findOne({
-      ID_TACHE: idTache,
-      ID_AUDITEUR: idAuditeurDelegant,
-      DECISION: "Déléguée"
-    });
-
-    if (affectationOriginale) {
-      affectationOriginale.DECISION = "Réfusée";
-      affectationOriginale.JUSTIFICATIF_REFUS = "Délégation refusée par l'auditeur désigné";
-      await affectationOriginale.save();
-    }
+    const idAuditeurDelegant = auditeurDelegantIndex !== -1 
+      ? affectation.ID_AUDITEURS[auditeurDelegantIndex].ID_AUDITEUR 
+      : null;
 
     // Notifications
     await Notification.create({
@@ -446,18 +525,20 @@ router.put('/delegation/refuser/:idAuditeur/:idTache', async (req, res) => {
       LUE: false
     });
 
-    await Notification.create({
-      ID: `NOTIF_${Date.now() + 1}`,
-      ID_AUDITEUR: idAuditeurDelegant,
-      MESSAGE: `Votre délégation a été refusée. La tâche est considérée comme refusée.`,
-      TYPE: 'Echoue',
-      LUE: false
-    });
+    if (idAuditeurDelegant) {
+      await Notification.create({
+        ID: `NOTIF_${Date.now() + 1}`,
+        ID_AUDITEUR: idAuditeurDelegant,
+        MESSAGE: `Votre délégation a été refusée. La tâche est considérée comme refusée.`,
+        TYPE: 'Echoue',
+        LUE: false
+      });
+    }
 
     // Historique
     await Historique.create({
       ID: `HIST_${Date.now()}`,
-      ID_AUDITEUR: [idAuditeur, idAuditeurDelegant],
+      ID_AUDITEUR: idAuditeurDelegant ? [idAuditeur, idAuditeurDelegant] : [idAuditeur],
       ID_TACHE: idTache,
       ACTION: 'Refus de délégation',
       DETAILS: `Délégation refusée. La tâche est considérée comme refusée par l'auditeur initial.`,
@@ -481,102 +562,121 @@ router.post('/verifier-delais', async (req, res) => {
     const maintenant = new Date();
     const il_y_a_24h = new Date(maintenant.getTime() - 24 * 60 * 60 * 1000);
 
-    // Affectations en attente dépassant 24h
-    const affectationsEnAttente = await Affectation.find({
-      DECISION: "En Attente",
+    const affectations = await Affectation.find({
       DATE_AFFECTATION: { $lte: il_y_a_24h },
-      ID_AUDITEUR_DELEGANT: { $exists: false } // Pas une délégation
+      STATUS: { $in: ["À venir"] }
     });
 
-    for (const affectation of affectationsEnAttente) {
-      affectation.DECISION = "Acceptée";
-      affectation.STATUS = "En cours";
+    let affectationsAccepteesCount = 0;
+    let delegationsExpireesCount = 0;
 
-      await affectation.save();
+    for (const affectation of affectations) {
+      let modified = false;
 
-      // Notification
-      await Notification.create({
-        ID: `NOTIF_${Date.now()}_${affectation.ID}`,
-        ID_AUDITEUR: affectation.ID_AUDITEUR[0],
-        MESSAGE: `Tâche acceptée automatiquement (délai de 24h dépassé)`,
-        TYPE: 'Information',
-        LUE: false
-      });
+      for (let i = 0; i < affectation.ID_AUDITEURS.length; i++) {
+        const auditeur = affectation.ID_AUDITEURS[i];
 
-      // Historique
-      await Historique.create({
-        ID: `HIST_${Date.now()}_${affectation.ID}`,
-        ID_AUDITEUR: affectation.ID_AUDITEUR,
-        ID_TACHE: affectation.ID_TACHE,
-        ACTION: 'Acceptation automatique',
-        DETAILS: `Tâche acceptée automatiquement après 24h sans réponse`,
-        DATE: new Date()
-      });
-    }
+        // Affectations normales en attente depuis 24h
+        if (auditeur.DECISION === "En Attente" && !auditeur.DATE_LIMITE_REPONSE_DELEGATION) {
+          auditeur.DECISION = "Acceptée";
+          auditeur.DATE_REPONSE = new Date();
+          auditeur.REPONSE_DANS_DELAI = false;
+          modified = true;
+          affectationsAccepteesCount++;
 
-    // Délégations en attente dépassant 24h
-    const delegationsEnAttente = await Affectation.find({
-      DECISION: "En Attente",
-      DATE_AFFECTATION: { $lte: il_y_a_24h },
-      ID_AUDITEUR_DELEGANT: { $exists: true }
-    });
+          // Notification
+          await Notification.create({
+            ID: `NOTIF_${Date.now()}_${auditeur.ID_AUDITEUR}`,
+            ID_AUDITEUR: auditeur.ID_AUDITEUR,
+            MESSAGE: `Tâche acceptée automatiquement (délai de 24h dépassé)`,
+            TYPE: 'Information',
+            LUE: false
+          });
 
-    for (const delegation of delegationsEnAttente) {
-      const idAuditeurDelegant = delegation.ID_AUDITEUR_DELEGANT;
+          // Historique
+          await Historique.create({
+            ID: `HIST_${Date.now()}_${auditeur.ID_AUDITEUR}`,
+            ID_AUDITEUR: [auditeur.ID_AUDITEUR],
+            ID_TACHE: affectation.ID_TACHE,
+            ACTION: 'Acceptation automatique',
+            DETAILS: `Tâche acceptée automatiquement après 24h sans réponse`,
+            DATE: new Date()
+          });
+        }
 
-      // Marquer la délégation comme refusée
-      delegation.DECISION = "Refusée";
-      delegation.STATUS = "Terminée";
-      delegation.DATE_REPONSE = new Date();
-      delegation.JUSTIFICATIF_REFUS = "Pas de réponse dans le délai de 24h";
+        // Délégations en attente depuis 24h
+        if (auditeur.DECISION === "En Attente" && 
+            auditeur.DATE_LIMITE_REPONSE_DELEGATION && 
+            new Date(auditeur.DATE_LIMITE_REPONSE_DELEGATION) <= maintenant) {
+          
+          // Trouver l'auditeur qui a délégué
+          const auditeurDelegantIndex = affectation.ID_AUDITEURS.findIndex(
+            a => a.ID_AUDITEUR_DELEGUE === auditeur.ID_AUDITEUR
+          );
 
-      await delegation.save();
+          // Marquer la délégation comme refusée
+          auditeur.DECISION = "Refusée";
+          auditeur.DATE_REPONSE = new Date();
+          auditeur.JUSTIFICATIF_REFUS = "Pas de réponse dans le délai de 24h";
 
-      // Marquer l'affectation originale comme refusée
-      const affectationOriginale = await Affectation.findOne({
-        ID_TACHE: delegation.ID_TACHE,
-        ID_AUDITEUR: idAuditeurDelegant,
-        DECISION: "Déléguée"
-      });
+          // Marquer l'auditeur initial comme refusé
+          if (auditeurDelegantIndex !== -1) {
+            affectation.ID_AUDITEURS[auditeurDelegantIndex].DECISION = "Refusée";
+            affectation.ID_AUDITEURS[auditeurDelegantIndex].JUSTIFICATIF_REFUS = "Délégation non confirmée dans les 24h";
 
-      if (affectationOriginale) {
-        affectationOriginale.DECISION = "Refusée";
-        affectationOriginale.JUSTIFICATIF_REFUS = "Délégation non confirmée dans les 24h";
-        await affectationOriginale.save();
+            const idDelegant = affectation.ID_AUDITEURS[auditeurDelegantIndex].ID_AUDITEUR;
+
+            // Notifications
+            await Notification.create({
+              ID: `NOTIF_${Date.now()}_${auditeur.ID_AUDITEUR}`,
+              ID_AUDITEUR: auditeur.ID_AUDITEUR,
+              MESSAGE: `Délégation expirée (pas de réponse dans les 24h)`,
+              TYPE: 'Echoue',
+              LUE: false
+            });
+
+            await Notification.create({
+              ID: `NOTIF_${Date.now() + 1}_${idDelegant}`,
+              ID_AUDITEUR: idDelegant,
+              MESSAGE: `Votre délégation a expiré. La tâche est considérée comme refusée.`,
+              TYPE: 'Echoue',
+              LUE: false
+            });
+
+            // Historique
+            await Historique.create({
+              ID: `HIST_${Date.now()}_${auditeur.ID_AUDITEUR}`,
+              ID_AUDITEUR: [auditeur.ID_AUDITEUR, idDelegant],
+              ID_TACHE: affectation.ID_TACHE,
+              ACTION: 'Expiration de délégation',
+              DETAILS: `Délégation expirée sans réponse. Tâche considérée comme refusée.`,
+              DATE: new Date()
+            });
+          }
+
+          modified = true;
+          delegationsExpireesCount++;
+        }
       }
 
-      // Notifications
-      await Notification.create({
-        ID: `NOTIF_${Date.now()}_${delegation.ID}`,
-        ID_AUDITEUR: delegation.ID_AUDITEUR[0],
-        MESSAGE: `Délégation expirée (pas de réponse dans les 24h)`,
-        TYPE: 'Echoue',
-        LUE: false
-      });
+      if (modified) {
+        // Vérifier si tous les auditeurs ont accepté
+        const tousAcceptes = affectation.ID_AUDITEURS.every(
+          a => a.DECISION === "Acceptée" || a.DECISION === "Déléguée"
+        );
 
-      await Notification.create({
-        ID: `NOTIF_${Date.now() + 1}_${delegation.ID}`,
-        ID_AUDITEUR: idAuditeurDelegant,
-        MESSAGE: `Votre délégation a expiré. La tâche est considérée comme refusée.`,
-        TYPE: 'Echoue',
-        LUE: false
-      });
+        if (tousAcceptes) {
+          affectation.STATUS = "En cours";
+        }
 
-      // Historique
-      await Historique.create({
-        ID: `HIST_${Date.now()}_${delegation.ID}`,
-        ID_AUDITEUR: [delegation.ID_AUDITEUR[0], idAuditeurDelegant],
-        ID_TACHE: delegation.ID_TACHE,
-        ACTION: 'Expiration de délégation',
-        DETAILS: `Délégation expirée sans réponse. Tâche considérée comme refusée.`,
-        DATE: new Date()
-      });
+        await affectation.save();
+      }
     }
 
     res.json({
       message: "Vérification des délais effectuée",
-      affectationsAcceptees: affectationsEnAttente.length,
-      delegationsExpirees: delegationsEnAttente.length
+      affectationsAcceptees: affectationsAccepteesCount,
+      delegationsExpirees: delegationsExpireesCount
     });
 
   } catch (error) {

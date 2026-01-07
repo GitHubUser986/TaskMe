@@ -1,4 +1,5 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 
@@ -11,22 +12,30 @@ import RegisterPage from './pages/Register';
 
 // Pages protégées
 import Dashboard from './pages/Dashboard';
+import Home from './pages/Home';
+
 import TaskForm from './pages/task/CreateTaskForm';
 import TaskManagement from './pages/task/TaskManagement';
+
 import MyTasks from './pages/assignements/MyTasks';
-import ManualAssignmentPage from './pages/assignements/ManualAssignmentPage';
 import ModeSelectionPage from './pages/assignements/AssignementList';
-import SemiAutoAssignmentPage from './pages/assignements/SemiAutoAssignmentPage';
 import AutoAssignmentPage from './pages/assignements/AutoAssignmentPage';
-import VehiclesManagement from './pages/vehicles/VehiclesManagement';
+import ManualAssignmentPage from './pages/assignements/ManualAssignmentPage';
+import SemiAutoAssignmentPage from './pages/assignements/SemiAutoAssignmentPage';
+
 import AddVehicleForm from './pages/vehicles/AddVehicleForm';
 import EditVehicleForm from './pages/vehicles/EditVehicleForm';
-import UsersManagement from './pages/users/UserManagement';
+import VehiclesManagement from './pages/vehicles/VehiclesManagement';
+
 import CreateUserForm from './pages/users/AddUser';
+import UsersManagement from './pages/users/UserManagement';
+
 import ChatInternal from './components/chat/ChatRoom';
 import NotificationsPage from './pages/NotificationsPage';
+
 import GlobalHistory from './pages/History/GlobalHistory';
 import IndividualHistory from './pages/History/IndividualHistory';
+
 import ProfilePage from './components/users/UserProfile';
 import EditProfilePage from './components/users/EditProfilePage';
 
@@ -49,42 +58,136 @@ function App() {
               <ProtectedRoute>
                 <Layout userName={userName}>
                   <Routes>
-                    {/* Dashboard */}
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/dashboard" element={<Dashboard />} />
+                    {/* Home - Accessible à tous les utilisateurs authentifiés */}
+                    <Route 
+                    path="/dashboard" 
+                    element={
+                      <ProtectedRoute allowedRoles={['SUPERADMIN']}>
+                        <Dashboard />
 
-                    {/* Tâches */}
-                    <Route path="/create-task" element={<TaskForm />} />
-                    <Route path="/tasks" element={<TaskManagement />} />
+                      </ProtectedRoute>
+                    } />
+
+                    <Route path="/" element={<Home />} />
+
+                    {/* Tâches - Création/Gestion (SUPERADMIN et ADMIN) */}
+                    <Route 
+                      path="/create-task" 
+                      element={
+                        <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                          <TaskForm />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/tasks" 
+                      element={
+                        <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                          <TaskManagement />
+                        </ProtectedRoute>
+                      } 
+                    />
+
+                    {/* Mes tâches - Accessible à tous */}
                     <Route path="/my-tasks" element={<MyTasks />} />
-                    <Route path="/assignment" element={<ModeSelectionPage />} />
-                    <Route path="/assignment/manual" element={<ManualAssignmentPage />} />
-                    <Route path="/assignment/semi-auto" element={<SemiAutoAssignmentPage />} />
-                    <Route path="/assignment/auto" element={<AutoAssignmentPage />} />
 
-                    {/* Véhicules */}
-                    <Route path="/vehicles" element={<VehiclesManagement />} />
-                    <Route path="/vehicles/add" element={<AddVehicleForm />} />
-                    <Route path="/vehicles/edit/:id" element={<EditVehicleForm />} />
+                    {/* Affectation des tâches (SUPERADMIN et ADMIN) */}
+                    <Route 
+                      path="/assignment" 
+                      element={
+                        <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                          <ModeSelectionPage />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/assignment/manual" 
+                      element={
+                        <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                          <ManualAssignmentPage />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/assignment/semi-auto" 
+                      element={
+                        <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                          <SemiAutoAssignmentPage />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/assignment/auto" 
+                      element={
+                        <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                          <AutoAssignmentPage />
+                        </ProtectedRoute>
+                      } 
+                    />
 
-                    {/* Utilisateurs */}
-                    <Route path="/users" element={<UsersManagement />} />
-                    <Route path="/users/create" element={<CreateUserForm />} />
+                    {/* Véhicules - Gestion (SUPERADMIN et ADMIN) */}
+                    <Route 
+                      path="/vehicles" 
+                      element={
+                        <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                          <VehiclesManagement />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/vehicles/add" 
+                      element={
+                        <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                          <AddVehicleForm />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/vehicles/edit/:id" 
+                      element={
+                        <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                          <EditVehicleForm />
+                        </ProtectedRoute>
+                      } 
+                    />
 
-                    {/* Chat et notifications */}
+                    {/* Utilisateurs - Gestion (SUPERADMIN et ADMIN) */}
+                    <Route 
+                      path="/users" 
+                      element={
+                        <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                          <UsersManagement />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/users/create" 
+                      element={
+                        <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                          <CreateUserForm />
+                        </ProtectedRoute>
+                      } 
+                    />
+
+                    {/* Chat et notifications - Accessible à tous */}
                     <Route path="/chat" element={<ChatInternal />} />
                     <Route path="/notifications" element={<NotificationsPage />} />
 
                     {/* Historique */}
-                    <Route path="/history/global" element={<GlobalHistory />} />
+                    <Route 
+                      path="/history/global" 
+                      element={
+                        <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                          <GlobalHistory />
+                        </ProtectedRoute>
+                      } 
+                    />
                     <Route path="/history/individual" element={<IndividualHistory />} />
 
-                    {/* Profil */}
+                    {/* Profil - Accessible à tous */}
                     <Route path="/profile" element={<ProfilePage />} />
                     <Route path="/edit-profile" element={<EditProfilePage />} />
 
-                    {/* Redirection par défaut vers Dashboard */}
-                    <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </Layout>
               </ProtectedRoute>

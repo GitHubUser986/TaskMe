@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Download, ExternalLink } from 'lucide-react';
-import { historiqueAPI, affectationAPI } from '../../services/api';
+import { affectationAPI, tacheAPI, userAPI } from '../../services/api';
 
 interface GlobalHistoryItem {
   id: string;
   idTache?: string;
+  idAuditeur?: string;
   userName: string;
   taskName: string;
   date: string;
   status: string;
   type: string;
   details?: string;
-  rapport?: string;
-  algorithme?: string;
+  source?: string;
 }
 
 interface RapportPDF {
@@ -21,6 +21,19 @@ interface RapportPDF {
   mimeType: string;
   size: number;
   createdAt: string;
+}
+
+interface Tache {
+  ID: string;
+  NOM: string;
+  [key: string]: any;
+}
+
+interface User {
+  ID: string;
+  PRENOM: string;
+  NOM: string;
+  [key: string]: any;
 }
 
 const GlobalHistory: React.FC = () => {
@@ -43,37 +56,52 @@ const GlobalHistory: React.FC = () => {
   });
   const [rapportsMap, setRapportsMap] = useState<Map<string, RapportPDF>>(new Map());
 
-  // Charger l'historique global et les rapports PDF
+  // Charger l'historique global depuis les affectations
   const loadHistory = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Récupérer l'historique avec filtres
-      const response = await historiqueAPI.getAll(filters);
+      // Récupérer toutes les affectations qui servent d'historique
+      const response = await affectationAPI.getAll();
+      const affectations = response.data;
 
-      const historyData = response.data?.success
-        ? response.data.data
-        : response.data;
+      // Transformer les affectations en éléments d'historique
+      const historyItems: GlobalHistoryItem[] = [];
 
-      setHistory(Array.isArray(historyData) ? historyData : []);
+      affectations.forEach((affectation: any) => {
+        // Pour chaque auditeur dans l'affectation, créer une entrée d'historique
+        if (affectation.ID_AUDITEURS && Array.isArray(affectation.ID_AUDITEURS)) {
+          affectation.ID_AUDITEURS.forEach((auditeur: any) => {
+            historyItems.push({
+              id: affectation.ID,
+              idTache: affectation.ID_TACHE,
+              idAuditeur: auditeur.ID_AUDITEUR,
+              userName: 'Auditeur', // Will be resolved later
+              taskName: 'Tâche', // Will be resolved later
+              date: affectation.DATE_AFFECTATION,
+              status: auditeur.DECISION || 'En Attente',
+              type: affectation.MODE_AFFECTATION || 'Manuel',
+              details: `Affectation ${affectation.MODE_AFFECTATION}`,
+              source: 'affectation'
+            });
+          });
+        }
+      });
 
-      // Charger les rapports PDF pour chaque tâche
+      // Charger les rapports PDF
       await loadRapportsPDF();
 
+      // Enrichir avec les noms des tâches et des utilisateurs
+      const enrichedHistory = await enrichHistoryWithNames(historyItems);
+
+      // Appliquer les filtres
+      const filteredHistory = applyFilters(enrichedHistory);
+
+      setHistory(filteredHistory);
+
       // Calculer les statistiques
-      const data = Array.isArray(historyData) ? historyData : [];
-      setStats({
-        total: data.length,
-        affectations: data.filter((h: GlobalHistoryItem) =>
-          h.type === 'Affectation').length,
-        algorithmes: data.filter((h: GlobalHistoryItem) =>
-          h.type === 'Algorithme' || h.algorithme).length,
-        refus: data.filter((h: GlobalHistoryItem) =>
-          h.type === 'Refus').length,
-        delegations: data.filter((h: GlobalHistoryItem) =>
-          h.type === 'Délégation').length
-      });
+      calculateStats(filteredHistory);
 
     } catch (err: any) {
       console.error('Erreur lors du chargement de l\'historique global:', err);
@@ -82,6 +110,93 @@ const GlobalHistory: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Enrichir l'historique avec les noms des tâches et des utilisateurs
+  const enrichHistoryWithNames = async (historyItems: GlobalHistoryItem[]): Promise<GlobalHistoryItem[]> => {
+    try {
+      // Récupérer toutes les tâches
+      const tachesResponse = await tacheAPI.getAll();
+      const taches = tachesResponse.data.data.taches;
+      const tachesMap = new Map<string, Tache>(taches.map((t: any) => [t.ID, t]));
+
+      // Récupérer tous les utilisateurs
+      const usersResponse = await userAPI.getAll({ role: 'USER' });
+      const users = usersResponse.data.data?.users || usersResponse.data.data || [];
+      const usersMap = new Map<string, User>(users.map((u: any) => [u.ID, u]));
+
+      // Enrichir chaque élément
+      return historyItems.map(item => {
+        const tache = tachesMap.get(item.idTache || '');
+        const user = usersMap.get(item.idAuditeur || '');
+        console.log(item.idAuditeur)
+
+        return {
+          ...item,
+          taskName: tache?.NOM || 'Tâche inconnue',
+          userName: user ? `${user.PRENOM} ${user.NOM}` : 'Utilisateur inconnu'
+        };
+      });
+    } catch (err) {
+      console.error('Erreur enrichissement:', err);
+      return historyItems;
+    }
+  };
+
+  // Appliquer les filtres
+  const applyFilters = (items: GlobalHistoryItem[]): GlobalHistoryItem[] => {
+    return items.filter(item => {
+      // Filtre de recherche
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        const matchesSearch = 
+          item.taskName.toLowerCase().includes(searchLower) ||
+          item.userName.toLowerCase().includes(searchLower);
+        if (!matchesSearch) return false;
+      }
+
+      // Filtre de date début
+      if (filters.startDate) {
+        const itemDate = new Date(item.date);
+        const startDate = new Date(filters.startDate);
+        if (itemDate < startDate) return false;
+      }
+
+      // Filtre de date fin
+      if (filters.endDate) {
+        const itemDate = new Date(item.date);
+        const endDate = new Date(filters.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        if (itemDate > endDate) return false;
+      }
+
+      // Filtre de statut
+      if (filters.status && item.status !== filters.status) {
+        return false;
+      }
+
+      // Filtre de type
+      if (filters.type && item.type !== filters.type) {
+        return false;
+      }
+
+      return true;
+    });
+  };
+
+  // Calculer les statistiques
+  const calculateStats = (items: GlobalHistoryItem[]) => {
+    setStats({
+      total: items.length,
+      affectations: items.filter(h => 
+        h.type === 'Manuel' || h.type === 'Semi-automatisé' || h.type === 'Automatisé (IA)'
+      ).length,
+      algorithmes: items.filter(h => 
+        h.status === 'Acceptée'
+      ).length,
+      refus: items.filter(h => h.status === 'Refusée').length,
+      delegations: items.filter(h => h.status === 'Déléguée').length
+    });
   };
 
   // Charger les rapports PDF depuis les affectations
@@ -95,7 +210,6 @@ const GlobalHistory: React.FC = () => {
       affectations.forEach((affectation: any) => {
         if (affectation.RAPPORT && affectation.RAPPORT.filePath) {
           const idTache = affectation.ID_TACHE;
-
           if (idTache) {
             newRapportsMap.set(idTache, affectation.RAPPORT);
           }
@@ -117,8 +231,7 @@ const GlobalHistory: React.FC = () => {
       'Acceptée': 'bg-green-100 text-green-800',
       'En Attente': 'bg-yellow-100 text-yellow-800',
       'Refusée': 'bg-red-100 text-red-800',
-      'Déléguée': 'bg-purple-100 text-purple-800',
-      'N/A': 'bg-gray-100 text-gray-600'
+      'Déléguée': 'bg-purple-100 text-purple-800'
     };
     return badges[status] || 'bg-gray-100 text-gray-800';
   };
@@ -127,7 +240,7 @@ const GlobalHistory: React.FC = () => {
     const badges: { [key: string]: string } = {
       'Manuel': 'bg-blue-100 text-blue-800',
       'Semi-automatisé': 'bg-purple-200 text-purple-800',
-      'Automatisé': 'bg-green-100 text-green-800'
+      'Automatisé (IA)': 'bg-green-100 text-green-800'
     };
     return badges[type] || 'bg-gray-100 text-gray-800';
   };
@@ -152,27 +265,11 @@ const GlobalHistory: React.FC = () => {
     window.open(fullURL, '_blank');
   };
 
-  const downloadPDF = (filePath: string, fileName: string) => {
-    const baseURL = 'http://localhost:5000';
-    const fullURL = `${baseURL}${filePath}`;
-
-    const link = document.createElement('a');
-    link.href = fullURL;
-    link.download = fileName;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const getRapportForItem = (item: GlobalHistoryItem): RapportPDF | null => {
     if (!item.idTache) {
       return null;
     }
-
-    const rapport = rapportsMap.get(item.idTache);
-
-    return rapport || null;
+    return rapportsMap.get(item.idTache) || null;
   };
 
   const exportToCSV = () => {
@@ -183,7 +280,7 @@ const GlobalHistory: React.FC = () => {
       new Date(item.date).toLocaleDateString('fr-FR'),
       item.status,
       item.type,
-      item.details || item.rapport || '-'
+      item.details || '-'
     ]);
 
     const csvContent = [
@@ -219,9 +316,10 @@ const GlobalHistory: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-800">Historique global</h1>
           <button
             onClick={exportToCSV}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
           >
-            Exporter CSV
+            <Download className="w-4 h-4" />
+            <span>Exporter CSV</span>
           </button>
         </div>
 
@@ -280,13 +378,13 @@ const GlobalHistory: React.FC = () => {
                 <option value="">Tous</option>
                 <option value="En Attente">En Attente</option>
                 <option value="Acceptée">Acceptée</option>
-                <option value="Refusée">Réfusée</option>
+                <option value="Refusée">Refusée</option>
                 <option value="Déléguée">Déléguée</option>
               </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Type
+                Mode d'affectation
               </label>
               <select
                 value={filters.type}
@@ -296,7 +394,7 @@ const GlobalHistory: React.FC = () => {
                 <option value="">Tous</option>
                 <option value="Manuel">Manuel</option>
                 <option value="Semi-automatisé">Semi-automatisé</option>
-                <option value="Automatisé">Automatisé</option>
+                <option value="Automatisé (IA)">Automatisé (IA)</option>
               </select>
             </div>
           </div>
@@ -321,8 +419,8 @@ const GlobalHistory: React.FC = () => {
             <p className="text-2xl font-bold text-blue-600">{stats.affectations}</p>
           </div>
           <div className="bg-white rounded-lg shadow-md p-4">
-            <p className="text-sm text-gray-600">Algorithmes</p>
-            <p className="text-2xl font-bold text-indigo-600">{stats.algorithmes}</p>
+            <p className="text-sm text-gray-600">Acceptations</p>
+            <p className="text-2xl font-bold text-green-600">{stats.algorithmes}</p>
           </div>
           <div className="bg-white rounded-lg shadow-md p-4">
             <p className="text-sm text-gray-600">Refus</p>
@@ -362,9 +460,14 @@ const GlobalHistory: React.FC = () => {
                   const rapport = getRapportForItem(item);
 
                   return (
-                    <tr key={`${item.id}-${index}`} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-6 py-4 text-gray-900">{item.taskName}</td>
-                      <td className="px-6 py-4 text-gray-700">
+                    <tr key={`${item.id}-${item.idAuditeur}-${index}`} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{item.taskName}</p>
+                          <p className="text-xs text-gray-500 mt-1">Par: {item.userName}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-700 whitespace-nowrap">
                         {new Date(item.date).toLocaleDateString('fr-FR', {
                           day: '2-digit',
                           month: '2-digit',
@@ -392,14 +495,6 @@ const GlobalHistory: React.FC = () => {
                               <ExternalLink className="w-4 h-4" />
                               <span>Ouvrir</span>
                             </button>
-                            <button
-                              onClick={() => downloadPDF(rapport.filePath, rapport.fileName)}
-                              className="flex items-center space-x-1 px-3 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg transition-colors text-sm"
-                              title="Télécharger le PDF"
-                            >
-                              <Download className="w-4 h-4" />
-                              <span>Télécharger</span>
-                            </button>
                           </div>
                         ) : (
                           <span className="text-gray-400 text-sm">Aucun rapport</span>
@@ -415,7 +510,9 @@ const GlobalHistory: React.FC = () => {
 
         {history.length === 0 && !loading && (
           <div className="text-center py-12">
+            <FileText className="w-16 h-16 mx-auto text-gray-300 mb-4" />
             <p className="text-gray-500 text-lg">Aucun historique trouvé</p>
+            <p className="text-gray-400 text-sm mt-2">Essayez de modifier les filtres</p>
           </div>
         )}
       </div>

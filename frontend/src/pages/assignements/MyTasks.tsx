@@ -66,8 +66,20 @@ const MyTasks: React.FC = () => {
     return `${heures}h ${minutes}min restantes`;
   };
 
-  const transformTaskData = (apiTask: any, affectation: any): MyTask => {
+  const transformTaskData = (apiTask: any, affectation: any, auditeurData: any): MyTask => {
     const tache = apiTask.data?.tache || apiTask;
+
+    // Déterminer si c'est une délégation
+    const isDelegation = !!auditeurData.DATE_LIMITE_REPONSE_DELEGATION;
+    
+    // Trouver l'auditeur qui a délégué (si applicable)
+    let idAuditeurDelegant = null;
+    if (isDelegation) {
+      const delegant = affectation.ID_AUDITEURS?.find(
+        (a: any) => a.ID_AUDITEUR_DELEGUE === auditeurData.ID_AUDITEUR
+      );
+      idAuditeurDelegant = delegant?.ID_AUDITEUR;
+    }
 
     return {
       id: String(tache.ID),
@@ -81,7 +93,7 @@ const MyTasks: React.FC = () => {
       startDate: tache.PERIODE_EXECUTION?.DATE_DEBUT,
       endDate: tache.PERIODE_EXECUTION?.DATE_FIN,
       status: affectation.STATUS || 'En attente',
-      decision: affectation.DECISION || 'En Attente',
+      decision: auditeurData.DECISION || 'En Attente',
       description: tache.DESCRIPTION || tache.description || 'Aucune description disponible',
       direction: tache.DIRECTION || tache.direction || 'Non spécifiée',
       specialty: tache.SPECIALITES_CONCERNEES?.[0] || tache.SPECIALITE || 'Non spécifiée',
@@ -90,9 +102,9 @@ const MyTasks: React.FC = () => {
       remunerationAmount: tache.MONTANT || '0',
       hasVehicle: tache.NECESSITE_VEHICULE || false,
       dateAffectation: affectation.DATE_AFFECTATION ? new Date(affectation.DATE_AFFECTATION) : undefined,
-      isDelegation: !!affectation.ID_AUDITEUR_DELEGANT,
-      idAuditeurDelegant: affectation.ID_AUDITEUR_DELEGANT,
-      delaiRestant: affectation.DECISION === 'En Attente' && affectation.DATE_AFFECTATION
+      isDelegation,
+      idAuditeurDelegant,
+      delaiRestant: auditeurData.DECISION === 'En Attente' && affectation.DATE_AFFECTATION
         ? calculerDelaiRestant(new Date(affectation.DATE_AFFECTATION))
         : undefined
     };
@@ -145,16 +157,32 @@ const MyTasks: React.FC = () => {
 
       const response = await affectationAPI.getAll();
 
+      // Filtrer les affectations où l'utilisateur est dans ID_AUDITEURS
       const userAffectations = response.data.filter(
-        (affectation: any) =>
-          Array.isArray(affectation.ID_AUDITEUR) &&
-          affectation.ID_AUDITEUR.includes(userId)
+        (affectation: any) => {
+          if (!affectation.ID_AUDITEURS || !Array.isArray(affectation.ID_AUDITEURS)) {
+            return false;
+          }
+          return affectation.ID_AUDITEURS.some(
+            (auditeur: any) => auditeur.ID_AUDITEUR === userId
+          );
+        }
       );
+      console.log(userAffectations);
 
       const tasksPromises = userAffectations.map(async (affectation: any) => {
         try {
           const taskResponse = await tacheAPI.getById(affectation.ID_TACHE);
-          return transformTaskData(taskResponse.data, affectation);
+          
+          // Trouver les données spécifiques de cet auditeur
+          const auditeurData = affectation.ID_AUDITEURS.find(
+            (a: any) => a.ID_AUDITEUR === userId
+          );
+
+          if (!auditeurData) return null;
+          console.log(transformTaskData(taskResponse.data, affectation, auditeurData));
+
+          return transformTaskData(taskResponse.data, affectation, auditeurData);
         } catch {
           return null;
         }
@@ -181,11 +209,9 @@ const MyTasks: React.FC = () => {
       const userId = userData.ID || userData.id;
 
       if (isDelegation) {
-        // CORRIGÉ: accepterDelegation prend (idAuditeur, idTache)
         await affectationAPI.accepterDelegation(userId, taskId);
         alert('Délégation acceptée avec succès !');
       } else {
-        // CORRIGÉ: accepterAffectation prend (idAuditeur, idTache)
         await affectationAPI.accepterAffectation(userId, taskId);
         alert('Tâche acceptée avec succès !');
       }
@@ -219,11 +245,9 @@ const MyTasks: React.FC = () => {
       const userId = userData.ID || userData.id;
 
       if (selectedTask.isDelegation) {
-        // CORRIGÉ: refuserDelegation prend (idAuditeur, idTache) et le justificatif est dans le body
         await affectationAPI.refuserDelegation(userId, selectedTask.id);
         alert('Délégation refusée. La tâche est considérée comme refusée par l\'auditeur initial.');
       } else {
-        // CORRIGÉ: refuserAffectation prend (idAuditeur, idTache, justificatif)
         await affectationAPI.refuserAffectation(userId, selectedTask.id, justificatif);
         alert('Tâche refusée.');
       }
@@ -264,7 +288,6 @@ const MyTasks: React.FC = () => {
       const userData = JSON.parse(userDataString);
       const userId = userData.ID || userData.id;
 
-      // CORRIGÉ: deleguerAffectation prend (idAuditeur, idTache, idAuditeurDelegue, justificatif)
       await affectationAPI.deleguerAffectation(
         userId,
         selectedTask.id,
@@ -318,7 +341,7 @@ const MyTasks: React.FC = () => {
   const filteredTasks = tasks.filter(task => {
     const taskName = task.taskName || '';
     const matchesSearch = taskName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = filterStatus === '' || task.status === filterStatus;
+    const matchesStatus = filterStatus === '' || task.decision === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
@@ -426,7 +449,6 @@ const MyTasks: React.FC = () => {
                     Délai
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-white-500 uppercase tracking-wider">
-
                   </th>
                 </tr>
               </thead>
@@ -434,7 +456,7 @@ const MyTasks: React.FC = () => {
                 {filteredTasks.map((task, index) => (
                   <tr
                     key={`${task.id}-${index}`}
-                    className={`hover:bg-gray-50 transition-colors ${selectedTask?.id === task.id ? 'bg-blue-50' : ''}`}
+                    className={`hover:bg-gray-50 transition-colors cursor-pointer ${selectedTask?.id === task.id ? 'bg-blue-50' : ''}`}
                     onClick={() => setSelectedTask(task)}
                   >
                     <td className="px-6 py-4">
@@ -523,7 +545,7 @@ const MyTasks: React.FC = () => {
                   : 'bg-orange-50 border border-orange-200'
                   }`}>
                   <div className="flex items-center">
-                    <span className="text-2xl mr-2"></span>
+                    <span className="text-2xl mr-2">⏰</span>
                     <div>
                       <p className={`font-semibold ${selectedTask.delaiRestant === 'Délai dépassé'
                         ? 'text-red-900'

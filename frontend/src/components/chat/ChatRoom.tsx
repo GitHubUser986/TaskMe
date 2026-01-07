@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Search, Phone, Video, MoreVertical, Smile, Paperclip, Loader2, MessageSquare, Users, Sparkles } from 'lucide-react';
+import { Send, Search, Phone, Video, MoreVertical, Smile, Paperclip, Loader2, MessageSquare, Users } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { chatAPI, userAPI, affectationAPI } from '../../services/api';
 
@@ -50,6 +50,7 @@ const ChatInternal: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const pollInterval = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const excludedDecisions = ['Refusée', 'Déléguée', 'En Attente'];
 
   // Charger les tâches de l'utilisateur
   const loadUserTasks = async () => {
@@ -57,10 +58,17 @@ const ChatInternal: React.FC = () => {
 
     try {
       const response = await affectationAPI.getUserTasks(user.ID);
-      setTasks(response.data);
+
+      const filteredTasks = response.data.filter(
+        (affectation: any) =>
+          !excludedDecisions.includes(affectation.DECISION)
+      );
+
+      setTasks(filteredTasks);
     } catch (err) {
       console.error("Erreur lors du chargement des tâches:", err);
     }
+
   };
 
   // Charger les contacts depuis la collection Affectation
@@ -72,6 +80,7 @@ const ChatInternal: React.FC = () => {
       const affectations = affectationsResponse.data;
       
       const auditeurIds = affectations
+        .filter((aff: any) => !excludedDecisions.includes(aff.DECISION))
         .flatMap((aff: any) => {
           if (Array.isArray(aff.ID_AUDITEUR)) {
             return aff.ID_AUDITEUR;
