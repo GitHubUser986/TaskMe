@@ -205,6 +205,21 @@ export const affectationAPI = {
       justificatif
     }),
 
+  /**
+   * Générer une proposition d'affectation automatique (IA)
+   */
+  generateAuto: (data: { idTache: string }) =>
+    api.post('/affectation/auto/generate', data),
+  
+  /**
+   * Confirmer une affectation automatique (IA)
+   */
+  confirmAuto: (data: {
+    idTache: string;
+    auditeursIds: string[];
+    vehiculesIds: string[];
+    rapport: string;
+  }) => api.post('/affectation/auto/confirm', data),
 };
 
 // Chat - Messages par tâche

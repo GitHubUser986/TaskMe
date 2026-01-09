@@ -1,24 +1,43 @@
 import nodemailer from 'nodemailer';
 
-// Configuration du transporteur d'email
-const transporter = nodemailer.createTransport({
-  host: process.env.EMAIL_HOST || 'devbusiness.noreply@gmail.com',
-  port: process.env.EMAIL_PORT || 587,
-  secure: false, // true pour 465, false pour les autres ports
-  auth: {
-    user: process.env.EMAIL_USER, // Votre email
-    pass: process.env.EMAIL_PASSWORD // Votre mot de passe ou app password
-  }
-});
+// Don't create transporter at import time - create it when needed
+let transporter = null;
 
-// Vérifier la configuration au démarrage
-transporter.verify((error, success) => {
-  if (error) {
-    console.error('Erreur de configuration email:', error);
-  } else {
-    console.log('Service email prêt');
+/**
+ * Get or create email transporter (lazy initialization)
+ */
+const getTransporter = () => {
+  if (!transporter) {
+    console.log('=== EMAIL SERVICE INITIALIZATION ===');
+    console.log('EMAIL_HOST:', process.env.EMAIL_HOST);
+    console.log('EMAIL_PORT:', process.env.EMAIL_PORT);
+    console.log('EMAIL_USER:', process.env.EMAIL_USER);
+    console.log('EMAIL_PASSWORD exists:', !!process.env.EMAIL_PASSWORD);
+    console.log('EMAIL_PASSWORD length:', process.env.EMAIL_PASSWORD?.length || 0);
+    console.log('====================================');
+
+    transporter = nodemailer.createTransport({
+      host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+      port: parseInt(process.env.EMAIL_PORT) || 587,
+      secure: false,
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASSWORD
+      }
+    });
+
+    // Vérifier la configuration
+    transporter.verify((error, success) => {
+      if (error) {
+        console.error('❌ Erreur de configuration email:', error.message);
+      } else {
+        console.log('✅ Service email prêt');
+      }
+    });
   }
-});
+  
+  return transporter;
+};
 
 /**
  * Templates d'email selon le type de notification
@@ -28,26 +47,27 @@ const getEmailTemplate = (type, message) => {
     'Information': {
       subject: '📬 Nouvelle information',
       color: '#3498db',
-      icon: ''
+      icon: 'ℹ️'
     },
     'Echoue': {
-      subject: 'Notification d\'échec',
+      subject: '❌ Notification d\'échec',
       color: '#e74c3c',
-      icon: ''
+      icon: '❌'
     },
     'Rappel': {
       subject: '🔔 Rappel important',
       color: '#f39c12',
-      icon: ''
+      icon: '🔔'
     },
     'Succès': {
-      subject: 'Opération réussie',
+      subject: '✅ Opération réussie',
       color: '#2ecc71',
       icon: '✓'
     }
   };
 
   const template = templates[type] || templates['Information'];
+  const appUrl = process.env.APP_URL || 'http://localhost:5173';
 
   return {
     subject: template.subject,
@@ -75,14 +95,14 @@ const getEmailTemplate = (type, message) => {
             </div>
             <div class="content">
               <p class="message">${message}</p>
-              <p>Cette notification a été générée automatiquement par le système d'audit.</p>
-              <a href="${process.env.APP_URL || 'http://localhost:5173'}" class="button">
+              <p>Cette notification a été générée automatiquement par le système.</p>
+              <a href="${appUrl}" class="button">
                 Voir dans l'application
               </a>
             </div>
             <div class="footer">
               <p>Cet email a été envoyé automatiquement, merci de ne pas y répondre.</p>
-              <p>&copy; ${new Date().getFullYear()} Système de Gestion des Audits</p>
+              <p>&copy; ${new Date().getFullYear()} Système de Gestion TaskMe</p>
             </div>
           </div>
         </body>
@@ -100,23 +120,25 @@ const getEmailTemplate = (type, message) => {
  */
 export const sendNotificationEmail = async (to, type, message, userName = '') => {
   try {
+    // Get transporter (will initialize if needed)
+    const emailTransporter = getTransporter();
+    
     const { subject, html } = getEmailTemplate(type, message);
 
     const mailOptions = {
-      from: `"Système d'Audit" <${process.env.EMAIL_USER}>`,
+      from: `"TaskMe System" <${process.env.EMAIL_USER}>`,
       to: to,
       subject: subject,
       html: html,
-      text: message // Version texte brut pour les clients qui ne supportent pas HTML
+      text: message
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Email envoyé avec succès:', info.messageId);
+    const info = await emailTransporter.sendMail(mailOptions);
+    console.log('✅ Email envoyé avec succès:', info.messageId, 'à', to);
     return { success: true, messageId: info.messageId };
 
   } catch (error) {
-    console.error('Erreur lors de l\'envoi de l\'email:', error);
-    // On ne veut pas que l'échec d'envoi d'email bloque la création de notification
+    console.error('❌ Erreur lors de l\'envoi de l\'email:', error.message);
     return { success: false, error: error.message };
   }
 };

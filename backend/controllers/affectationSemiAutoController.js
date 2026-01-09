@@ -1,4 +1,3 @@
-// affectationSemiAutoController.js
 import path from 'path';
 import fs from 'fs';
 import { jsPDF } from 'jspdf';
@@ -8,6 +7,7 @@ import User from '../models/User.js';
 import Vehicule from '../models/Vehicule.js';
 import Historique from '../models/Historique.js';
 import Notification from '../models/Notification.js';
+import { sendNotificationEmail } from '../services/emailService.js';
 
 /**
  * Vérifie la disponibilité d'un auditeur pendant une période
@@ -348,7 +348,7 @@ export const genererAffectationSemiAutomatique = async (req, res) => {
 };
 
 /**
- * Confirmer une affectation semi-automatique
+ * Confirmer une affectation semi-automatique + ENVOYER EMAILS
  */
 export const confirmerAffectationSemiAutomatique = async (req, res) => {
   try {
@@ -361,6 +361,9 @@ export const confirmerAffectationSemiAutomatique = async (req, res) => {
         message: "Cette tâche a déjà une affectation"
       });
     }
+    
+    // Récupérer la tâche pour les détails
+    const tache = await Tache.findOne({ ID: idTache });
     
     // Générer le PDF du rapport
     const rapportMetadata = genererPDFRapport(rapport, idTache);
@@ -396,18 +399,36 @@ export const confirmerAffectationSemiAutomatique = async (req, res) => {
     
     await historique.save();
     
-    // Créer les notifications pour chaque auditeur
+    // ⭐ Créer les notifications IN-APP + EMAIL pour chaque auditeur
     for (const auditeurId of auditeursIds) {
+      // 1. Créer notification in-app
       const notification = new Notification({
         ID: `N-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
         ID_AUDITEUR: auditeurId,
         ID_TACHE: idTache,
         TYPE: 'Information',
-        MESSAGE: `Vous avez été affecté automatiquement à une tâche. Consultez vos tâches pour plus de détails.`,
+        MESSAGE: `Vous avez été affecté automatiquement à la tâche "${tache.NOM}". Consultez vos tâches pour plus de détails.`,
         LUE: false
       });
       
       await notification.save();
+
+      // 2. Récupérer l'utilisateur pour l'email
+      const user = await User.findOne({ ID: auditeurId });
+      
+      if (user && user.EMAIL) {
+        const userName = `${user.PRENOM} ${user.NOM}`;
+        
+        // 3. Envoyer l'email de manière asynchrone (ne bloque pas la réponse)
+        sendNotificationEmail(
+          user.EMAIL,
+          'Information',
+          `Vous avez été sélectionné automatiquement pour la tâche "${tache.NOM}". Période: ${new Date(tache.PERIODE_EXECUTION.DATE_DEBUT).toLocaleDateString()} - ${new Date(tache.PERIODE_EXECUTION.DATE_FIN).toLocaleDateString()}. Consultez l'application pour accepter ou refuser cette affectation.`,
+          userName
+        ).catch(error => {
+          console.error(`❌ Erreur envoi email à ${user.EMAIL}:`, error.message);
+        });
+      }
     }
     
     res.status(201).json({

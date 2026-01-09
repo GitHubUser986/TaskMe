@@ -7,7 +7,8 @@ import Tache from '../models/Tache.js';
 import User from '../models/User.js';
 import Vehicule from '../models/Vehicule.js';
 import Historique from '../models/Historique.js';
-import Notification from '../models/Notification.js'
+import Notification from '../models/Notification.js';
+import { sendNotificationEmail } from '../services/emailService.js';
 
 /**
  * Vérifie la disponibilité d'un auditeur pendant la période d'une tâche
@@ -318,7 +319,7 @@ const genererPDF = (contenu, idTache) => {
 };
 
 /**
- * Crée une affectation manuelle avec rapport des contraintes
+ * Crée une affectation manuelle avec rapport des contraintes + EMAILS
  */
 export const creerAffectationManuelle = async (req, res) => {
   try {
@@ -405,19 +406,36 @@ export const creerAffectationManuelle = async (req, res) => {
     
     await historique.save();
 
-    // Créer les notifications pour chaque auditeur
-    for (let index = 0; index < auditeursIds.length; index++) {
-      const auditeurId = auditeursIds[index];
+    // ⭐ Créer les notifications IN-APP + EMAIL pour chaque auditeur
+    for (const auditeurId of auditeursIds) {
+      // 1. Créer notification in-app
       const notification = new Notification({
         ID: `N-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`,
         ID_AUDITEUR: auditeurId,
         ID_TACHE: idTache,
         TYPE: 'Information',
-        MESSAGE: `Vous avez été affecté à une tâche, consultez vos tâches pour plus de détails`,
+        MESSAGE: `Vous avez été affecté à la tâche "${tache.NOM}". Consultez vos tâches pour plus de détails.`,
         LUE: false
       });
       
       await notification.save();
+
+      // 2. Récupérer l'utilisateur pour l'email
+      const user = await User.findOne({ ID: auditeurId });
+      
+      if (user && user.EMAIL) {
+        const userName = `${user.PRENOM} ${user.NOM}`;
+        
+        // 3. Envoyer l'email de manière asynchrone (ne bloque pas la réponse)
+        sendNotificationEmail(
+          user.EMAIL,
+          'Information',
+          `Vous avez été affecté à la tâche "${tache.NOM}". Période: ${new Date(tache.PERIODE_EXECUTION.DATE_DEBUT).toLocaleDateString()} - ${new Date(tache.PERIODE_EXECUTION.DATE_FIN).toLocaleDateString()}. Consultez l'application pour plus de détails.`,
+          userName
+        ).catch(error => {
+          console.error(`❌ Erreur envoi email à ${user.EMAIL}:`, error.message);
+        });
+      }
     }
     
     res.status(201).json({
@@ -427,7 +445,8 @@ export const creerAffectationManuelle = async (req, res) => {
       rapport: rapportMetadata,
       rapportTexte: rapportTexte,
       contraintesNonRespectees,
-      historiqueId: historique.ID
+      historiqueId: historique.ID,
+      notificationsEnvoyees: auditeursIds.length
     });
     
   } catch (error) {

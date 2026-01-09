@@ -18,6 +18,11 @@ import {
   annulerAffectationSemiAutomatique
 } from '../controllers/affectationSemiAutoController.js'
 
+import {
+  genererAffectationAutomatique,
+  confirmerAffectationAutomatique
+} from '../controllers/affectationAutoController.js';
+
 const router = express.Router();
 
 // GET all affectations
@@ -70,6 +75,12 @@ router.post('/semi-auto/confirm', confirmerAffectationSemiAutomatique);
 
 // DELETE - Annuler une affectation semi-automatique
 router.delete('/semi-auto/cancel/:idAffectation', annulerAffectationSemiAutomatique);
+
+// POST - Générer une proposition d'affectation automatique (IA)
+router.post('/auto/generate', genererAffectationAutomatique);
+
+// POST - Confirmer une affectation automatique (IA)
+router.post('/auto/confirm', confirmerAffectationAutomatique);
 
 // POST create new affectation (route générique)
 router.post('/', async (req, res) => {

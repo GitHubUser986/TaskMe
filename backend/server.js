@@ -1,5 +1,10 @@
-import express from "express";
 import dotenv from "dotenv";
+
+// ⭐ CRITICAL: Load environment variables FIRST before any other imports
+dotenv.config();
+
+// Now import everything else
+import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
@@ -15,8 +20,6 @@ import chatRoutes from "./routes/chatRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import historiqueRoutes from "./routes/historiqueRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -35,7 +38,6 @@ app.use(cors({
   },
   credentials: true,
 }));
-
 
 app.use(helmet());
 app.use(express.json());

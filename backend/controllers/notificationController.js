@@ -51,34 +51,51 @@ export const getUnreadCount = async (req, res) => {
 
 /**
  * POST /api/notification
- * Crée une nouvelle notification ET envoie un email
+ * Crée une nouvelle notification ET envoie un email (si l'utilisateur a activé les emails)
  */
 export const createNotification = async (req, res) => {
   try {
-    // 1. Créer la notification
+    // 1. Créer la notification in-app
     const notification = new Notification(req.body);
     await notification.save();
     
-    // 2. Récupérer les informations de l'utilisateur pour l'email
-    const user = await User.findOne({ ID: req.body.ID_AUDITEUR });
+    // 2. Récupérer les informations de l'utilisateur
+    const user = await User.findOne({ ID: req.body.ID });
     
-    if (user && user.EMAIL) {
-      // 3. Envoyer l'email de manière asynchrone (ne bloque pas la réponse)
+    if (!user) {
+      console.warn(`Utilisateur ${req.body.ID} non trouvé`);
+      return res.status(201).json(successResponse(
+        { notification }, 
+        "Notification créée (utilisateur non trouvé pour email)"
+      ));
+    }
+
+    // 3. Vérifier si l'utilisateur a un email ET veut recevoir des emails
+    // Note: Ajoutez un champ EMAIL_NOTIFICATIONS dans votre modèle User si souhaité
+    const shouldSendEmail = user.EMAIL; // Par défaut true
+    
+    if (shouldSendEmail) {
       const userName = `${user.PRENOM} ${user.NOM}`;
       
+      // Envoyer l'email de manière asynchrone
       sendNotificationEmail(
         user.EMAIL,
         notification.TYPE,
         notification.MESSAGE,
         userName
-      ).then(result => {
+      )
+      .then(result => {
         if (result.success) {
+          console.log(`✓ Email envoyé à ${user.EMAIL} (ID: ${result.messageId})`);
         } else {
-          console.error(`Échec de l'envoi d'email à ${user.EMAIL}:`, result.error);
+          console.error(`✗ Échec envoi email à ${user.EMAIL}:`, result.error);
         }
+      })
+      .catch(err => {
+        console.error(`✗ Erreur critique email pour ${user.EMAIL}:`, err);
       });
     } else {
-      console.warn(`Utilisateur ${req.body.ID_AUDITEUR} non trouvé ou sans email`);
+      console.log(`Email non envoyé pour ${user.EMAIL} (préférences utilisateur)`);
     }
     
     // 4. Répondre immédiatement (sans attendre l'email)

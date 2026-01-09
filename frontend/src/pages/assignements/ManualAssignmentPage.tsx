@@ -82,43 +82,27 @@ const fetchTaches = async () => {
       // Charger toutes les tâches
       const responseTaches = await tacheAPI.getAll();
       
-      // Charger toutes les affectations
+      // Charger toutes les affectations pour filtrer les tâches déjà affectées
       const responseAffectations = await affectationAPI.getAll();
       
-      // Compter le nombre d'auditeurs acceptés ou en attente par tâche
-      const auditeursParTache = new Map<string, number>();
-      
-      responseAffectations.data.forEach((affectation: any) => {
-        // Compter seulement les auditeurs avec décision "Acceptée" ou "En Attente"
-        const auditeursValides = affectation.ID_AUDITEUR.filter((_: any, index: number) => {
-          const decision = Array.isArray(affectation.DECISION) 
-            ? affectation.DECISION[index] 
-            : affectation.DECISION;
-          return decision === "Acceptée" || decision === "En Attente";
-        });
-        
-        const count = auditeursParTache.get(affectation.ID_TACHE) || 0;
-        auditeursParTache.set(affectation.ID_TACHE, count + auditeursValides.length);
-      });
-      
-      // Filtrer les tâches :
-      // 1. Tâches sans aucune affectation
-      // 2. Tâches dont le nombre d'auditeurs acceptés/en attente < nombre de places
-      const tachesDisponibles = responseTaches.data.data.taches.filter(
-        (tache: Tache) => {
-          const auditeursAssignes = auditeursParTache.get(tache.ID) || 0;
-          return auditeursAssignes < tache.NOMBRE_PLACES;
-        }
+      // Extraire les IDs des tâches déjà affectées
+      const tachesAffecteesIds = new Set(
+        responseAffectations.data.map((affectation: any) => affectation.ID_TACHE)
       );
       
-      console.log('Tâches chargées:', responseTaches.data.data.taches.length);
-      console.log('Tâches disponibles (places restantes):', tachesDisponibles.length);
-      console.log('Répartition:', Array.from(auditeursParTache.entries()));
+      // Filtrer les tâches pour ne garder que celles qui ne sont pas affectées
+      const tachesDisponibles = responseTaches.data.data.taches.filter(
+        (tache: Tache) => !tachesAffecteesIds.has(tache.ID)
+      );
+      
+      console.log('Tâches chargées:', responseTaches.data.length);
+      console.log('Tâches déjà affectées:', tachesAffecteesIds.size);
+      console.log('Tâches disponibles:', tachesDisponibles.length);
       
       setTaches(tachesDisponibles);
     } catch (err) {
       console.error('Erreur chargement tâches:', err);
-
+;
     } 
   };
 
