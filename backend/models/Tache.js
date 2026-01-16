@@ -16,7 +16,13 @@ const tacheSchema = new mongoose.Schema({
   GRADES_CONCERNES: [String],
   NECESSITE_VEHICULE: { type: Boolean, default: false },
   DIRECTION: { type: String, enum: ["ligne Rabat-Casa", "ligne Meknès-Errachidia", "ligne Marrakech-Agadir"], required: true },
-  FICHIER_ADMINISTRATIF: String,
+  FICHIER_ADMINISTRATIF:{
+    fileName: { type: String },
+    filePath: { type: String }, //uploads/files
+    mimeType: { type: String, default: "application/pdf" }, 
+    size: { type: Number },
+    createdAt: { type: Date }
+  },
   NOMBRE_PLACES: { type: Number, required: true }
 }, {
   collection: "tache"

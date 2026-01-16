@@ -28,6 +28,9 @@ const LoginPage: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    // Supprimer le token et les données utilisateur
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
 
     try {
       const payload = {
@@ -37,7 +40,7 @@ const LoginPage: React.FC = () => {
 
       const response = await authAPI.login(payload);
 
-      // Option A : Si la structure est response.data.data
+      // Si la structure est response.data.data
       if (response.data.success && response.data.data) {
         const { user, token } = response.data.data;
 

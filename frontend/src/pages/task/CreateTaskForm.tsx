@@ -17,6 +17,7 @@ interface FormData {
   REMUNEREE: boolean;
   MONTANT: string;
   NECESSITE_VEHICULE: boolean;
+  FICHIER_ADMINISTRATIF: File | null;
 }
 
 const CreateTaskForm: React.FC = () => {
@@ -36,6 +37,7 @@ const CreateTaskForm: React.FC = () => {
     REMUNEREE: false,
     MONTANT: '',
     NECESSITE_VEHICULE: false,
+    FICHIER_ADMINISTRATIF: null,
   });
 
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
@@ -101,6 +103,32 @@ const CreateTaskForm: React.FC = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0];
+  if (file) {
+    // Optional: Validate file type
+    if (file.type !== 'application/pdf') {
+      setErrors(prev => ({ 
+        ...prev, 
+        FICHIER_ADMINISTRATIF: 'Seuls les fichiers PDF sont acceptés' 
+      }));
+      return;
+    }
+    
+    // Optional: Validate file size (e.g., max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setErrors(prev => ({ 
+        ...prev, 
+        FICHIER_ADMINISTRATIF: 'Le fichier ne doit pas dépasser 5 MB' 
+      }));
+      return;
+    }
+    
+    setFormData(prev => ({ ...prev, FICHIER_ADMINISTRATIF: file }));
+    setErrors(prev => ({ ...prev, FICHIER_ADMINISTRATIF: '' }));
+  }
+};
+
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
 
@@ -138,6 +166,10 @@ const CreateTaskForm: React.FC = () => {
 
     if (formData.SPECIALITES_CONCERNEES.length === 0) {
       newErrors.SPECIALITES_CONCERNEES = 'Au moins une spécialité doit être sélectionnée';
+    } 
+    
+    if(formData.TYPE == "Particulière" && formData.SPECIALITES_CONCERNEES.length != 1) {
+      newErrors.SPECIALITES_CONCERNEES = 'Vous devez choisir une seule spécialité tant que le type de spécialité est particulier';
     }
 
     if (formData.GRADES_CONCERNES.length === 0) {
@@ -165,33 +197,33 @@ const CreateTaskForm: React.FC = () => {
     setSuccessMessage('');
 
     try {
-      // GÉNÉRER UN ID UNIQUE POUR LA TÂCHE
       const taskID = generateTaskID();
 
-      const taskData = {
-        ID: taskID, // IMPORTANT: Ajout de l'ID généré
-        NOM: formData.NOM.trim(),
-        TYPE: formData.TYPE,
-        DESCRIPTION: formData.DESCRIPTION.trim(),
-        PERIODE_EXECUTION: {
-          DATE_DEBUT: new Date(formData.DATE_DEBUT).toISOString(),
-          DATE_FIN: new Date(formData.DATE_FIN).toISOString()
-        },
-        DIRECTION: formData.DIRECTION,
-        NOMBRE_PLACES: parseInt(formData.NOMBRE_PLACES.toString()),
-        COMMUNE_OU_PARTICULIERE: formData.COMMUNE_OU_PARTICULIERE,
-        SPECIALITES_CONCERNEES: formData.SPECIALITES_CONCERNEES,
-        GRADES_CONCERNES: formData.GRADES_CONCERNES,
-        REMUNEREE: formData.REMUNEREE,
-        MONTANT: formData.REMUNEREE ? parseFloat(formData.MONTANT) : 0,
-        NECESSITE_VEHICULE: formData.NECESSITE_VEHICULE
-      };
+      // Create FormData object for file upload
+      const formDataToSend = new FormData();
+      
+      // Add all fields
+      formDataToSend.append('ID', taskID);
+      formDataToSend.append('NOM', formData.NOM.trim());
+      formDataToSend.append('TYPE', formData.TYPE);
+      formDataToSend.append('DESCRIPTION', formData.DESCRIPTION.trim());
+      formDataToSend.append('DATE_DEBUT', new Date(formData.DATE_DEBUT).toISOString());
+      formDataToSend.append('DATE_FIN', new Date(formData.DATE_FIN).toISOString());
+      formDataToSend.append('DIRECTION', formData.DIRECTION);
+      formDataToSend.append('NOMBRE_PLACES', formData.NOMBRE_PLACES.toString());
+      formDataToSend.append('COMMUNE_OU_PARTICULIERE', formData.COMMUNE_OU_PARTICULIERE);
+      formDataToSend.append('SPECIALITES_CONCERNEES', JSON.stringify(formData.SPECIALITES_CONCERNEES));
+      formDataToSend.append('GRADES_CONCERNES', JSON.stringify(formData.GRADES_CONCERNES));
+      formDataToSend.append('REMUNEREE', formData.REMUNEREE.toString());
+      formDataToSend.append('MONTANT', formData.REMUNEREE ? formData.MONTANT : '0');
+      formDataToSend.append('NECESSITE_VEHICULE', formData.NECESSITE_VEHICULE.toString());
+      
+      // Add file if present
+      if (formData.FICHIER_ADMINISTRATIF) {
+        formDataToSend.append('FICHIER_ADMINISTRATIF', formData.FICHIER_ADMINISTRATIF);
+      }
 
-      console.log('Données envoyées:', taskData);
-
-      const response = await tacheAPI.create(taskData);
-
-      console.log('Réponse reçue:', response.data);
+      const response = await tacheAPI.create(formDataToSend);
 
       if (response.data.success) {
         setSuccessMessage('Tâche créée avec succès !');
@@ -484,7 +516,8 @@ const CreateTaskForm: React.FC = () => {
             </div>
 
             {/* Grades */}
-            <div className="mb-6">
+            <div className='grid grid-cols-1 md:grid-cols-2 gap-6 mb-6'>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Grades concernés <span className="text-red-500">*</span>
               </label>
@@ -508,6 +541,31 @@ const CreateTaskForm: React.FC = () => {
                   {errors.GRADES_CONCERNES}
                 </p>
               )}
+              </div>
+              <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Fichier administratif joint (PDF)
+              </label>
+              <input
+                type="file"
+                accept=".pdf"
+                onChange={handleFileChange}
+                className={`text-sm ${errors.FICHIER_ADMINISTRATIF ? 'text-red-600' : 'text-blue-600'}`}
+                disabled={loading}
+              />
+              {errors.FICHIER_ADMINISTRATIF && (
+                <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {errors.FICHIER_ADMINISTRATIF}
+                </p>
+              )}
+              {formData.FICHIER_ADMINISTRATIF && (
+                <p className="mt-1 text-sm text-gray-600">
+                  Fichier sélectionné: {formData.FICHIER_ADMINISTRATIF.name}
+                </p>
+              )}
+            </div>
+
             </div>
 
             {/* Rémunération */}

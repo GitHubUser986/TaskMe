@@ -406,7 +406,7 @@ export const creerAffectationManuelle = async (req, res) => {
     
     await historique.save();
 
-    // ⭐ Créer les notifications IN-APP + EMAIL pour chaque auditeur
+    // Créer les notifications IN-APP + EMAIL pour chaque auditeur
     for (const auditeurId of auditeursIds) {
       // 1. Créer notification in-app
       const notification = new Notification({
