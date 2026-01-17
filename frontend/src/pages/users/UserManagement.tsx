@@ -138,14 +138,14 @@ const UsersManagement: React.FC = () => {
   };
 
   // Basculer le statut actif/inactif
-  const handleToggleStatus = async (id: string) => {
+  const handleToggleStatus = async (ID: string) => {
     try {
-      const response = await userAPI.toggleStatus(id);
+      const response = await userAPI.toggleStatus(ID);
 
       if (response.data.success) {
         // Mise à jour locale
         setUsers(users.map(user =>
-          user._id === id
+          user.ID === ID
             ? { ...user, ACTIF: !user.ACTIF }
             : user
         ));
@@ -378,7 +378,7 @@ const UsersManagement: React.FC = () => {
                             <li>
                               <button
                                 onClick={() => {
-                                  handleToggleStatus(user._id);
+                                  handleToggleStatus(user.ID);
                                   setOpenMenuId(null);
                                 }}
                                 className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100"

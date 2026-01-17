@@ -117,6 +117,7 @@ const AddVehicleForm: React.FC = () => {
                 >
                   <option value="">Sélectionner une marque</option>
                   <option value="Mercedes">Mercedes</option>
+                  <option value="BMW">BMW</option>
                   <option value="Toyota">Toyota</option>
                   <option value="Renault">Renault</option>
                   <option value="Peugeot">Peugeot</option>
