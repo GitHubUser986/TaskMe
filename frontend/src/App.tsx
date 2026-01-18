@@ -18,7 +18,9 @@ import TaskForm from './pages/task/CreateTaskForm';
 import TaskManagement from './pages/task/TaskManagement';
 
 import MyTasks from './pages/assignements/MyTasks';
+import AssignementList from './pages/assignements/AssignementsPage';
 import ModeSelectionPage from './pages/assignements/AssignementList';
+import AssignmentEditPage from './pages/assignements/AssignmentEditPage';
 import AutoAssignmentPage from './pages/assignements/AutoAssignmentPage';
 import ManualAssignmentPage from './pages/assignements/ManualAssignmentPage';
 import SemiAutoAssignmentPage from './pages/assignements/SemiAutoAssignmentPage';
@@ -97,6 +99,22 @@ function App() {
                       element={
                         <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
                           <ModeSelectionPage />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/assignment/list" 
+                      element={
+                        <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                          <AssignementList />
+                        </ProtectedRoute>
+                      } 
+                    />
+                    <Route 
+                      path="/assignment/edit/:id" 
+                      element={
+                        <ProtectedRoute allowedRoles={['SUPERADMIN', 'ADMIN']}>
+                          <AssignmentEditPage />
                         </ProtectedRoute>
                       } 
                     />

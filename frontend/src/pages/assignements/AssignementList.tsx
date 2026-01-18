@@ -21,6 +21,16 @@ const ModeSelectionPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-7xl mx-auto px-4">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Affectation des auditeurs</h1>
+         <div className="cursor-pointer w-6/12 p-4 rounded-lg shadow-md transition-colors border-l-4 border-purple-400 my-6 bg-white hover:bg-gray-50"
+        onClick={() => navigate('/assignment/list')}>
+
+        <div className="text-xl font-semibold my-2">
+          Voir les affectations
+          <div className="text-gray-600 text-sm">
+            Consultez et gérer tous les affectations
+          </div>
+        </div>
+      </div>
         <div className="bg-blue-50 border-l-4 border-blue-400 text-blue-700 p-4 rounded-md mb-6">
           Sélectionnez un mode d'affectation pour distribuer les tâches aux auditeurs.
         </div>

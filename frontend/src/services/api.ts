@@ -65,8 +65,6 @@ export const userAPI = {
     grade?: string;
     role?: string;
     actif?: boolean;
-    page?: number;
-    limit?: number;
   }) => api.get('/user', { params }),
   
   getById: (id: string) =>
@@ -113,9 +111,10 @@ export const tacheAPI = {
 export const affectationAPI = {
   getAll: (params?: any) => api.get('/affectation', { params }),
   getById: (id: string) => api.get(`/affectation/${id}`),
+  getAssignement: (id: string) => api.get(`/affectation/assignment/${id}`),
   create: (data: any) => api.post('/affectation', data),
-  update: (id: string, data: any) => api.put(`/affectation/${id}`, data),
-  delete: (id: string) => api.delete(`/affectation/${id}`),
+  update: (id: string, data: any) => api.put(`/affectation/update/${id}`, data),  
+  delete: (id: string) => api.delete(`/affectation/delete/${id}`),
 
   getUserTasks: (userId: string) => 
     api.get(`/affectation/mytasks/${userId}`),

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { userAPI } from '../../services/api';
-import Pagination from '../../components/common/Pagination';
 
 interface User {
   _id: string;
@@ -22,13 +21,6 @@ const UsersManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-
-  const totalPages = Math.ceil(users.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentUsers = users.slice(startIndex, startIndex + itemsPerPage);
 
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -82,6 +74,7 @@ const UsersManagement: React.FC = () => {
 
       if (response.data.success) {
         setUsers(response.data.data.users);
+        console.log(users);
         setError('');
       }
     } catch (err: any) {
@@ -291,6 +284,22 @@ const UsersManagement: React.FC = () => {
           </div>
         </div>
 
+          {/* Statistiques */}
+        <div className="my-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <div className="text-sm text-gray-600">Total utilisateurs</div>
+            <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <div className="text-sm text-gray-600">Utilisateurs actifs</div>
+            <div className="text-2xl font-bold text-green-600">{stats.actifs}</div>
+          </div>
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <div className="text-sm text-gray-600">Utilisateurs inactifs</div>
+            <div className="text-2xl font-bold text-red-600">{stats.inactifs}</div>
+          </div>
+        </div>
+
         {/* Message d'erreur */}
         {error && (
           <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-md">
@@ -325,7 +334,7 @@ const UsersManagement: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {currentUsers.map((user) => (
+                {users.map((user) => (
                   <tr key={user._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col gap-1">
@@ -507,22 +516,6 @@ const UsersManagement: React.FC = () => {
               <p className="text-gray-500">Aucun utilisateur trouvé</p>
             </div>
           )}
-        </div>
-
-        {/* Statistiques */}
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <div className="text-sm text-gray-600">Total utilisateurs</div>
-            <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <div className="text-sm text-gray-600">Utilisateurs actifs</div>
-            <div className="text-2xl font-bold text-green-600">{stats.actifs}</div>
-          </div>
-          <div className="bg-white rounded-lg shadow-md p-4">
-            <div className="text-sm text-gray-600">Utilisateurs inactifs</div>
-            <div className="text-2xl font-bold text-red-600">{stats.inactifs}</div>
-          </div>
         </div>
       </div>
     </div>

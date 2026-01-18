@@ -9,9 +9,7 @@ export const getAllUsers = async (req, res) => {
       specialite, 
       grade, 
       role, 
-      actif,
-      page = 1,
-      limit = 10
+      actif
     } = req.query;
 
     // Construction du filtre
@@ -29,23 +27,14 @@ export const getAllUsers = async (req, res) => {
     if (grade) filter.GRADE = grade;
     if (role) filter.ROLE = role;
     if (actif !== undefined) filter.ACTIF = actif === 'true';
-
-    // Pagination
-    const skip = (page - 1) * limit;
-    const total = await User.countDocuments(filter);
     
     const users = await User.find(filter)
       .select('-MOT_DE_PASSE')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(parseInt(limit));
+      .sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
       count: users.length,
-      total,
-      totalPages: Math.ceil(total / limit),
-      currentPage: parseInt(page),
       data: { users }
     });
   } catch (error) {

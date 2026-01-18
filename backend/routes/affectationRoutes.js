@@ -35,6 +35,21 @@ router.get('/', async (req, res) => {
     }
 });
 
+// GET affectation by assignment ID (must be before /:idAuditeur route)
+router.get('/assignment/:id', async (req, res) => {
+    try {
+        const affectation = await Affectation.findOne({ 
+          ID: req.params.id 
+        });
+        if (!affectation) {
+            return res.status(404).json({ message: "Affectation non trouvée" });
+        }
+        res.json(affectation);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 // GET affectation by ID_AUDITEUR
 router.get('/:idAuditeur', async (req, res) => {
     try {
@@ -91,6 +106,72 @@ router.post('/', async (req, res) => {
     } catch (error) {
         res.status(400).json({ message: error.message });
     }
+});
+
+// PUT - Mettre à jour une affectation par son ID
+router.put('/update/:id', async (req, res) => {
+  try {
+    const updatedAffectation = await Affectation.findOneAndUpdate(
+      { ID: req.params.id }, 
+      req.body, 
+      { new: true, runValidators: true }
+    );
+    
+    if (!updatedAffectation) {
+      return res.status(404).json({ message: "Affectation non trouvée" });
+    }
+    
+    res.json(updatedAffectation);
+  } catch (error) {
+    console.error("Erreur mise à jour affectation:", error);
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// DELETE - Supprimer une affectation par son ID
+router.delete('/delete/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Trouver l'affectation avant de la supprimer pour l'historique
+    const affectation = await Affectation.findOne({ ID: id });
+    
+    if (!affectation) {
+      return res.status(404).json({ message: "Affectation non trouvée" });
+    }
+
+    // Supprimer l'affectation
+    await Affectation.findOneAndDelete({ ID: id });
+
+    // Créer un historique de la suppression
+    await Historique.create({
+      ID: `HIST_${Date.now()}`,
+      ID_AUDITEUR: affectation.ID_AUDITEURS.map(a => a.ID_AUDITEUR),
+      ID_TACHE: affectation.ID_TACHE,
+      ACTION: 'Suppression d\'affectation',
+      DETAILS: `Affectation ${id} supprimée - Tâche: ${affectation.ID_TACHE}`,
+      DATE: new Date()
+    });
+
+    // Notifier les auditeurs de la suppression
+    for (const auditeur of affectation.ID_AUDITEURS) {
+      await Notification.create({
+        ID: `NOTIF_${Date.now()}_${auditeur.ID_AUDITEUR}`,
+        ID_AUDITEUR: auditeur.ID_AUDITEUR,
+        MESSAGE: `L'affectation pour la tâche ${affectation.ID_TACHE} a été supprimée`,
+        TYPE: 'Information',
+        LUE: false
+      });
+    }
+    
+    res.json({
+      message: "Affectation supprimée avec succès",
+      deletedId: id
+    });
+  } catch (error) {
+    console.error("Erreur suppression affectation:", error);
+    res.status(500).json({ message: error.message });
+  }
 });
 
 // PUT UPDATE DECISION AFFECTATION (deprecated - use specific endpoints)
@@ -589,7 +670,7 @@ router.post('/verifier-delais', async (req, res) => {
 
         // Affectations normales en attente depuis 24h
         if (auditeur.DECISION === "En Attente" && !auditeur.DATE_LIMITE_REPONSE_DELEGATION) {
-          auditeur.DECISION = "Acceptée";
+          auditeur.DECISION = "Refusée";
           auditeur.DATE_REPONSE = new Date();
           auditeur.REPONSE_DANS_DELAI = false;
           modified = true;
@@ -599,8 +680,8 @@ router.post('/verifier-delais', async (req, res) => {
           await Notification.create({
             ID: `NOTIF_${Date.now()}_${auditeur.ID_AUDITEUR}`,
             ID_AUDITEUR: auditeur.ID_AUDITEUR,
-            MESSAGE: `Tâche acceptée automatiquement (délai de 24h dépassé)`,
-            TYPE: 'Information',
+            MESSAGE: `Tâche réfusée automatiquement (délai de 24h dépassé)`,
+            TYPE: 'Echoue',
             LUE: false
           });
 
@@ -609,8 +690,8 @@ router.post('/verifier-delais', async (req, res) => {
             ID: `HIST_${Date.now()}_${auditeur.ID_AUDITEUR}`,
             ID_AUDITEUR: [auditeur.ID_AUDITEUR],
             ID_TACHE: affectation.ID_TACHE,
-            ACTION: 'Acceptation automatique',
-            DETAILS: `Tâche acceptée automatiquement après 24h sans réponse`,
+            ACTION: 'Refus automatique',
+            DETAILS: `Tâche réfusée automatiquement après 24h sans réponse`,
             DATE: new Date()
           });
         }
@@ -632,8 +713,7 @@ router.post('/verifier-delais', async (req, res) => {
 
           // Marquer l'auditeur initial comme refusé
           if (auditeurDelegantIndex !== -1) {
-            affectation.ID_AUDITEURS[auditeurDelegantIndex].DECISION = "Refusée";
-            affectation.ID_AUDITEURS[auditeurDelegantIndex].JUSTIFICATIF_REFUS = "Délégation non confirmée dans les 24h";
+            affectation.ID_AUDITEURS[auditeurDelegantIndex].DECISION = "En Attente";
 
             const idDelegant = affectation.ID_AUDITEURS[auditeurDelegantIndex].ID_AUDITEUR;
 
@@ -649,7 +729,7 @@ router.post('/verifier-delais', async (req, res) => {
             await Notification.create({
               ID: `NOTIF_${Date.now() + 1}_${idDelegant}`,
               ID_AUDITEUR: idDelegant,
-              MESSAGE: `Votre délégation a expiré. La tâche est considérée comme refusée.`,
+              MESSAGE: `Votre délégation a expiré. En attente de votre dernière réponse.`,
               TYPE: 'Echoue',
               LUE: false
             });
