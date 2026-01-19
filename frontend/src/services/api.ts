@@ -108,8 +108,22 @@ export const vehiculeAPI = {
 export const tacheAPI = {
   getAll: (params?: any) => api.get('/tache', { params }),
   getById: (id: string) => api.get(`/tache/${id}`),
-  create: (data: any) => api.post('/tache', data),
-  update: (id: string, data: any) => api.put(`/tache/${id}`, data),
+  
+  // Method specifically for FormData
+  create: (data: any) => {
+    const config = data instanceof FormData 
+      ? { headers: { 'Content-Type': 'multipart/form-data' } }
+      : {};
+    return api.post('/tache', data, config);
+  },
+  
+  update: (id: string, data: any) => {
+    const config = data instanceof FormData 
+      ? { headers: { 'Content-Type': 'multipart/form-data' } }
+      : {};
+    return api.put(`/tache/${id}`, data, config);
+  },
+  
   delete: (id: string) => api.delete(`/tache/${id}`),
 };
 

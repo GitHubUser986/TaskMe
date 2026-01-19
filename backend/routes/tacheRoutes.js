@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import Tache from "../models/Tache.js";
 import Notification from "../models/Notification.js";
+import User from "../models/User.js"; // Import User model
 
 const router = express.Router();
 
@@ -47,6 +48,36 @@ const upload = multer({
   }
 });
 
+// Helper function to send notification to all users
+const sendNotificationToEveryone = async (tache) => {
+  try {
+    // Get all active users
+    const users = await User.find({ ACTIF: true }).select('ID');
+    
+    // Prepare all notifications
+    const timestamp = Date.now();
+    const notifications = users.map((user, index) => ({
+      ID: `NOTIF_${timestamp}_${index}_${user.ID}_${tache.ID}`,
+      ID_AUDITEUR: user.ID,
+      MESSAGE: `Nouvelle tâche "${tache.NOM}" est créée`,
+      TYPE: 'Information',
+      LUE: false,
+      CREATED_AT: new Date()
+    }));
+    
+    // Bulk insert all notifications at once
+    if (notifications.length > 0) {
+      await Notification.insertMany(notifications);
+      console.log(`✅ Notification sent to ${users.length} users`);
+    } else {
+      console.log('⚠️ No active users found to send notifications');
+    }
+  } catch (error) {
+    console.error('❌ Error sending notifications:', error);
+    // Don't throw error - notification failure shouldn't stop task creation
+  }
+};
+
 // GET ALL
 router.get('/', async (req, res) => {
     try {
@@ -68,7 +99,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// POST - with file upload
+// POST - with file upload and broadcast notification
 router.post('/', upload.single('FICHIER_ADMINISTRATIF'), async (req, res) => {
   try {
     console.log('Request body:', req.body);
@@ -108,16 +139,11 @@ router.post('/', upload.single('FICHIER_ADMINISTRATIF'), async (req, res) => {
     const tache = new Tache(taskData);
     await tache.save();
     
-    await Notification.create({
-      ID: `NOTIF_${Date.now()}_${tache.ID}`,
-      ID_AUDITEUR: null,
-      MESSAGE: `Nouvelle tâche "${tache.NOM}" est créée`,
-      TYPE: 'Information',
-      LUE: false
-    });
+    // Send notification to all active users
+    await sendNotificationToEveryone(tache);
     
     res.status(201).json(
-      successResponse({ tache }, "Tâche créée avec succès")
+      successResponse({ tache }, "Tâche créée avec succès et notification envoyée à tous les utilisateurs")
     );
   } catch (error) {
     console.error('Error creating task:', error);
