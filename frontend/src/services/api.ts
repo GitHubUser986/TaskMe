@@ -55,6 +55,12 @@ export const authAPI = {
   
   changePassword: (passwordData: any) =>
     api.put('/auth/change-password', passwordData),
+
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  },
 };
 
 // Utilisateurs

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react';
-import { authAPI } from '../services/api';
-import { getRedirectPath } from '../utils/roleCheck';
+import { useAuth } from '../context/AuthContext';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login, isAuthenticated } = useAuth();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -16,54 +17,45 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Redirect if already authenticated
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
-    setError(''); // Effacer l'erreur lors de la saisie
+    setError('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    // Supprimer le token et les données utilisateur
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
 
     try {
-      const payload = {
-        EMAIL: formData.email,
-        MOT_DE_PASSE: formData.password
-      };
+      await login(formData.email, formData.password);
 
-      const response = await authAPI.login(payload);
-
-      // Si la structure est response.data.data
-      if (response.data.success && response.data.data) {
-        const { user, token } = response.data.data;
-
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
-
-        if (remember) {
-          localStorage.setItem('rememberedEmail', formData.email);
-        } else {
-          localStorage.removeItem('rememberedEmail');
-        }
-
-        const redirectPath = getRedirectPath(user.ROLE);
-        navigate(redirectPath);
-
+      // Handle remember me
+      if (remember) {
+        localStorage.setItem('rememberedEmail', formData.email);
       } else {
-
-        setError('Erreur de connexion');
+        localStorage.removeItem('rememberedEmail');
       }
-    } catch (err: any) {
 
+      // Get redirect path from location state or default to home
+      const from = (location.state as any)?.from?.pathname || '/';
+      navigate(from, { replace: true });
+
+    } catch (err: any) {
+      console.error('Login error:', err);
       setError(
         err.response?.data?.message ||
+        err.message ||
         'Erreur de connexion. Vérifiez vos identifiants.'
       );
     } finally {
@@ -71,7 +63,7 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  // Charger l'email mémorisé au montage du composant
+  // Load remembered email on mount
   React.useEffect(() => {
     const rememberedEmail = localStorage.getItem('rememberedEmail');
     if (rememberedEmail) {
@@ -99,7 +91,7 @@ const LoginPage: React.FC = () => {
         <div className="bg-slate-800/50 backdrop-blur-xl rounded-2xl shadow-2xl p-8 border border-slate-700/50">
           <h2 className="text-2xl font-bold text-white mb-6 text-center">Connexion</h2>
 
-          {/* Message d'erreur */}
+          {/* Error message */}
           {error && (
             <div className="mb-6 p-4 bg-red-500/10 border border-red-500/50 rounded-xl flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />

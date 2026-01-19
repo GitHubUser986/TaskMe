@@ -1,4 +1,4 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 interface ProtectedRouteProps {
@@ -8,30 +8,34 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
   const { user, isAuthenticated, loading } = useAuth();
+  const location = useLocation();
 
-  // Afficher un loader pendant la vérification de l'authentification
+  // Show loader while checking authentication
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center min-h-screen bg-slate-900">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-gray-400 mt-4">Vérification...</p>
+        </div>
       </div>
     );
   }
 
-  // Rediriger vers login si non authentifié
+  // Redirect to login if not authenticated
   if (!isAuthenticated || !user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  // Vérifier les rôles autorisés si spécifiés
+  // Check allowed roles if specified
   if (allowedRoles && allowedRoles.length > 0) {
     if (!allowedRoles.includes(user.ROLE)) {
-      // Rediriger vers le dashboard avec un message d'erreur
-      return <Navigate to="/dashboard" replace state={{ error: 'Accès non autorisé' }} />;
+      // Redirect to home page with error message for unauthorized access
+      return <Navigate to="/" replace state={{ error: 'Accès non autorisé à cette page' }} />;
     }
   }
 
   return <>{children}</>;
 };
 
-export default ProtectedRoute;
+export default ProtectedRoute;  
