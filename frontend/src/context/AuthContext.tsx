@@ -163,6 +163,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Logout
   const logout = () => {
     clearAuthData();
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
     window.location.href = '/login';
   };
 
