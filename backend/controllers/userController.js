@@ -1,7 +1,7 @@
 import User from '../models/User.js';
 import bcrypt from 'bcryptjs';
 
-// Obtenir tous les utilisateurs avec filtres
+// Obtenir tous les utilisateurs avec filtres ET pagination conditionnelle
 export const getAllUsers = async (req, res) => {
   try {
     const { 
@@ -9,7 +9,10 @@ export const getAllUsers = async (req, res) => {
       specialite, 
       grade, 
       role, 
-      actif
+      actif,
+      page,
+      limit,
+      all  // New parameter for non-paginated requests
     } = req.query;
 
     // Construction du filtre
@@ -27,15 +30,47 @@ export const getAllUsers = async (req, res) => {
     if (grade) filter.GRADE = grade;
     if (role) filter.ROLE = role;
     if (actif !== undefined) filter.ACTIF = actif === 'true';
-    
+
+    // CASE 1: Non-paginated (for selects, exports, etc.)
+    if (all === 'true') {
+      const users = await User.find(filter)
+        .select('-MOT_DE_PASSE')
+        .sort({ createdAt: -1 });
+
+      return res.status(200).json({
+        success: true,
+        count: users.length,
+        data: { users }
+      });
+    }
+
+    // CASE 2: Paginated (for tables)
+    const currentPage = parseInt(page) || 1;
+    const perPage = parseInt(limit) || 10;
+    const skip = (currentPage - 1) * perPage;
+
+    // Get total count for pagination
+    const total = await User.countDocuments(filter);
+
+    // Get paginated users
     const users = await User.find(filter)
       .select('-MOT_DE_PASSE')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(perPage);
 
     res.status(200).json({
       success: true,
       count: users.length,
-      data: { users }
+      data: { 
+        users,
+        pagination: {
+          currentPage,
+          totalPages: Math.ceil(total / perPage),
+          totalItems: total,
+          perPage
+        }
+      }
     });
   } catch (error) {
     console.error('Erreur lors de la récupération des utilisateurs:', error);
@@ -370,7 +405,6 @@ export const getUsersStatuses = async (req, res) => {
       });
     }
 
-    // Convertir la chaîne en tableau
     const userIds = ids.split(',').map(id => id.trim()).filter(id => id);
 
     if (userIds.length === 0) {
@@ -380,7 +414,6 @@ export const getUsersStatuses = async (req, res) => {
       });
     }
 
-    // Limiter à 50 utilisateurs max par requête pour éviter les abus
     if (userIds.length > 50) {
       return res.status(400).json({
         success: false,
@@ -388,13 +421,11 @@ export const getUsersStatuses = async (req, res) => {
       });
     }
 
-    // Récupérer uniquement les champs nécessaires
     const users = await User.find(
       { ID: { $in: userIds }, ACTIF: true },
       { ID: 1, DERNIERE_CONNEXION: 1, _id: 0 }
     );
 
-    // Calculer le statut pour chaque utilisateur
     const now = new Date();
     const statuses = {};
 
@@ -406,7 +437,6 @@ export const getUsersStatuses = async (req, res) => {
       };
     });
 
-    // Ajouter les utilisateurs non trouvés comme 'offline'
     userIds.forEach(userId => {
       if (!statuses[userId]) {
         statuses[userId] = {
@@ -431,13 +461,9 @@ export const getUsersStatuses = async (req, res) => {
   }
 };
 
-/**
- * Mettre à jour la dernière activité de l'utilisateur actuel
- * PUT /api/users/heartbeat
- */
 export const updateHeartbeat = async (req, res) => {
   try {
-    const userId = req.user?.ID; // Récupéré du middleware d'authentification
+    const userId = req.user?.ID;
 
     if (!userId) {
       return res.status(401).json({
@@ -446,7 +472,6 @@ export const updateHeartbeat = async (req, res) => {
       });
     }
 
-    // Mettre à jour DERNIERE_CONNEXION
     await User.findOneAndUpdate(
       { ID: userId },
       { DERNIERE_CONNEXION: new Date() },
@@ -468,19 +493,13 @@ export const updateHeartbeat = async (req, res) => {
   }
 };
 
-/**
- * Calculer le statut d'un utilisateur basé sur sa dernière connexion
- */
 function calculateUserStatus(lastConnection, now = new Date()) {
   if (!lastConnection) return 'offline';
 
   const lastActivity = new Date(lastConnection);
   const diffMinutes = Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60));
 
-  // En ligne si dernière activité < 5 minutes
   if (diffMinutes < 5) return 'online';
-  // Absent si < 30 minutes
   if (diffMinutes < 30) return 'away';
-  // Hors ligne sinon
   return 'offline';
 }

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tacheAPI } from '../../services/api';
@@ -30,6 +29,15 @@ interface Task {
   };
 }
 
+interface Pagination {
+  currentPage: number;
+  totalPages: number;
+  totalItems: number;
+  perPage: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
 const TaskManagement: React.FC = () => {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -38,6 +46,15 @@ const TaskManagement: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pagination, setPagination] = useState<Pagination | null>(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    enCours: 0,
+    aVenir: 0,
+    terminees: 0
+  });
+  
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [formData, setFormData] = useState<Partial<Task>>({});
@@ -45,13 +62,24 @@ const TaskManagement: React.FC = () => {
 
   useEffect(() => {
     fetchTasks();
-  }, []);
+    fetchStats();
+  }, [currentPage, searchTerm, filterType, filterStatus]);
 
   const fetchTasks = async () => {
     try {
       setLoading(true);
-      const response = await tacheAPI.getAll();
+      const params: any = {
+        page: currentPage,
+        limit: 6,
+      };
+
+      if (searchTerm) params.search = searchTerm;
+      if (filterType) params.type = filterType;
+      if (filterStatus) params.status = filterStatus;
+
+      const response = await tacheAPI.getAll(params);
       setTasks(response.data.data.taches);
+      setPagination(response.data.data.pagination);
       setError('');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Erreur lors du chargement des tâches');
@@ -59,6 +87,27 @@ const TaskManagement: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const response = await tacheAPI.getStats();
+      setStats(response.data.data);
+    } catch (err) {
+      console.error('Erreur lors du chargement des statistiques:', err);
+    }
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleClearFilters = () => {
+    setSearchTerm('');
+    setFilterType('');
+    setFilterStatus('');
+    setCurrentPage(1);
   };
 
   const getTaskStatus = (task: Task): 'En cours' | 'Terminée' | 'À venir' => {
@@ -112,9 +161,7 @@ const TaskManagement: React.FC = () => {
       const token = localStorage.getItem('token');
       
       const response = await fetch(`${API_URL}/tache/file/${taskId}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       
       if (!response.ok) throw new Error('Erreur lors du téléchargement');
@@ -133,14 +180,6 @@ const TaskManagement: React.FC = () => {
       alert('Erreur lors du téléchargement du fichier');
     }
   };
-
-  const filteredTasks = tasks.filter(task => {
-    const status = getTaskStatus(task);
-    const matchesSearch = task.NOM.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === '' || task.TYPE === filterType;
-    const matchesStatus = filterStatus === '' || status === filterStatus;
-    return matchesSearch && matchesType && matchesStatus;
-  });
 
   const handleViewDetails = (task: Task) => {
     setSelectedTask(task);
@@ -219,6 +258,7 @@ const TaskManagement: React.FC = () => {
       setSubmitting(true);
       await tacheAPI.update(editingTask.ID, formData);
       await fetchTasks();
+      await fetchStats();
       handleCloseEdit();
       alert('Tâche modifiée avec succès');
     } catch (err: any) {
@@ -235,6 +275,7 @@ const TaskManagement: React.FC = () => {
     try {
       await tacheAPI.delete(taskId);
       await fetchTasks();
+      await fetchStats();
       setSelectedTask(null);
       alert('Tâche supprimée avec succès');
     } catch (err: any) {
@@ -243,14 +284,89 @@ const TaskManagement: React.FC = () => {
     }
   };
 
-  const taskStats = {
-    total: tasks.length,
-    enCours: tasks.filter(t => getTaskStatus(t) === 'En cours').length,
-    aVenir: tasks.filter(t => getTaskStatus(t) === 'À venir').length,
-    terminees: tasks.filter(t => getTaskStatus(t) === 'Terminée').length
+  const renderPagination = () => {
+    if (!pagination || pagination.totalPages <= 1) return null;
+
+    const pages = [];
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(pagination.totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+      startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+      pages.push(i);
+    }
+
+    return (
+      <div className="flex items-center justify-between mt-4">
+        {pagination && (
+           <div className="text-sm text-gray-600 mx-7">
+             Affichage de {((currentPage - 1) * 6) + 1} à {Math.min(currentPage * 6, pagination.totalItems)} sur {pagination.totalItems} tâches
+           </div>
+         )}
+         <div className="flex gap-2 my-4 mx-16">
+          <button
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={!pagination.hasPrevPage}
+            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Précédent
+          </button>
+
+          {startPage > 1 && (
+            <>
+              <button
+                onClick={() => handlePageChange(1)}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                1
+              </button>
+              {startPage > 2 && <span className="px-2">...</span>}
+            </>
+          )}
+
+          {pages.map(page => (
+            <button
+              key={page}
+              onClick={() => handlePageChange(page)}
+              className={`px-4 py-2 border rounded-md transition-colors ${
+                currentPage === page
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              {page}
+            </button>
+          ))}
+
+          {endPage < pagination.totalPages && (
+            <>
+              {endPage < pagination.totalPages - 1 && <span className="px-2">...</span>}
+              <button
+                onClick={() => handlePageChange(pagination.totalPages)}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                {pagination.totalPages}
+              </button>
+            </>
+          )}
+
+          <button
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={!pagination.hasNextPage}
+            className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Suivant
+          </button>
+        </div>
+      </div>
+    );
   };
 
-  if (loading) {
+  if (loading && tasks.length === 0) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -267,7 +383,6 @@ const TaskManagement: React.FC = () => {
         <div className="mb-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <h1 className="text-3xl font-bold text-gray-800">Gestion des tâches</h1>
-
             <button
               onClick={() => navigate('/create-task')}
               className="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors whitespace-nowrap"
@@ -285,19 +400,19 @@ const TaskManagement: React.FC = () => {
           <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white rounded-lg shadow-md p-4">
               <div className="text-sm text-gray-600">Total tâches</div>
-              <div className="text-2xl font-bold text-gray-900">{taskStats.total}</div>
+              <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
             </div>
             <div className="bg-white rounded-lg shadow-md p-4">
               <div className="text-sm text-gray-600">En cours</div>
-              <div className="text-2xl font-bold text-blue-600">{taskStats.enCours}</div>
+              <div className="text-2xl font-bold text-blue-600">{stats.enCours}</div>
             </div>
             <div className="bg-white rounded-lg shadow-md p-4">
               <div className="text-sm text-gray-600">À venir</div>
-              <div className="text-2xl font-bold text-green-600">{taskStats.aVenir}</div>
+              <div className="text-2xl font-bold text-green-600">{stats.aVenir}</div>
             </div>
             <div className="bg-white rounded-lg shadow-md p-4">
               <div className="text-sm text-gray-600">Terminées</div>
-              <div className="text-2xl font-bold text-gray-600">{taskStats.terminees}</div>
+              <div className="text-2xl font-bold text-gray-600">{stats.terminees}</div>
             </div>
           </div>
 
@@ -307,13 +422,19 @@ const TaskManagement: React.FC = () => {
               className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full md:w-80"
               placeholder="Rechercher une tâche..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
             />
 
             <select
               className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full md:w-56"
               value={filterType}
-              onChange={(e) => setFilterType(e.target.value)}
+              onChange={(e) => {
+                setFilterType(e.target.value);
+                setCurrentPage(1);
+              }}
             >
               <option value="">Tous les types</option>
               <option value="Formateur">Formateur</option>
@@ -326,82 +447,111 @@ const TaskManagement: React.FC = () => {
             <select
               className="px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full md:w-56"
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={(e) => {
+                setFilterStatus(e.target.value);
+                setCurrentPage(1);
+              }}
             >
               <option value="">Tous les statuts</option>
               <option value="En cours">En cours</option>
               <option value="À venir">À venir</option>
               <option value="Terminée">Terminée</option>
             </select>
+
+            {(searchTerm || filterType || filterStatus) && (
+              <button
+                onClick={handleClearFilters}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors whitespace-nowrap"
+              >
+                Effacer les filtres
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTasks.map((task) => {
-            const status = getTaskStatus(task);
-            return (
-              <div key={task._id} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-start justify-between mb-4">
-                  <h3 className="text-lg font-bold text-gray-900 flex-1">{task.NOM}</h3>
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(status)}`}>
-                    {status}
-                  </span>
-                </div>
+        {loading && tasks.length > 0 ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {tasks.map((task) => {
+                const status = getTaskStatus(task);
+                return (
+                  <div key={task._id} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+                    <div className="flex items-start justify-between mb-4">
+                      <h3 className="text-lg font-bold text-gray-900 flex-1">{task.NOM}</h3>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(status)}`}>
+                        {status}
+                      </span>
+                    </div>
 
-                <div className="space-y-3 mb-4">
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="font-medium">Type:</span>
-                    <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
-                      {getTypeLabel(task.TYPE)}
-                    </span>
+                    <div className="space-y-3 mb-4">
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <span className="font-medium">Type:</span>
+                        <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs">
+                          {getTypeLabel(task.TYPE)}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <span className="font-medium">📍 Direction:</span>
+                        <span>{getDirectionLabel(task.DIRECTION)}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <span className="font-medium">📅 Période:</span>
+                        <span>
+                          {new Date(task.PERIODE_EXECUTION.DATE_DEBUT).toLocaleDateString('fr-FR')} - {new Date(task.PERIODE_EXECUTION.DATE_FIN).toLocaleDateString('fr-FR')}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <span className="font-medium">👥 Places:</span>
+                        <span className="font-bold text-blue-600">{task.NOMBRE_PLACES}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <span className="font-medium">💰</span>
+                        <span>{task.REMUNEREE ? `${task.MONTANT} MAD` : 'Non rémunérée'}</span>
+                      </div>
+
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <span className="font-medium">🚗</span>
+                        <span>{task.NECESSITE_VEHICULE ? 'Véhicule fourni' : 'Pas de véhicule'}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleViewDetails(task)}
+                      className="w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                    >
+                      Voir les détails
+                    </button>
                   </div>
+                );
+              })}
+            </div>
 
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="font-medium">📍 Direction:</span>
-                    <span>{getDirectionLabel(task.DIRECTION)}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="font-medium">📅 Période:</span>
-                    <span>
-                      {new Date(task.PERIODE_EXECUTION.DATE_DEBUT).toLocaleDateString('fr-FR')} - {new Date(task.PERIODE_EXECUTION.DATE_FIN).toLocaleDateString('fr-FR')}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="font-medium">👥 Places:</span>
-                    <span className="font-bold text-blue-600">{task.NOMBRE_PLACES}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="font-medium">💰</span>
-                    <span>{task.REMUNEREE ? `${task.MONTANT} MAD` : 'Non rémunérée'}</span>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <span className="font-medium">🚗</span>
-                    <span>{task.NECESSITE_VEHICULE ? 'Véhicule fourni' : 'Pas de véhicule'}</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => handleViewDetails(task)}
-                  className="w-full px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-                >
-                  Voir les détails
-                </button>
+            {tasks.length === 0 && (
+              <div className="text-center py-12 bg-white rounded-lg shadow-md">
+                <p className="text-gray-500 text-lg">Aucune tâche trouvée</p>
+                {(searchTerm || filterType || filterStatus) && (
+                  <button
+                    onClick={handleClearFilters}
+                    className="mt-4 text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Effacer les filtres
+                  </button>
+                )}
               </div>
-            );
-          })}
-        </div>
+            )}
 
-        {filteredTasks.length === 0 && (
-          <div className="text-center py-12 bg-white rounded-lg shadow-md">
-            <p className="text-gray-500 text-lg">Aucune tâche trouvée</p>
-          </div>
+            {renderPagination()}
+          </>
         )}
       </div>
-
       {/* Modal de détails */}
       {selectedTask && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50" onClick={handleCloseDetails}>

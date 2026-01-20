@@ -21,7 +21,12 @@ const UsersManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    perPage: 10
+  });
 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -57,33 +62,37 @@ const UsersManagement: React.FC = () => {
 
   // Recharger lors du changement de filtres
   useEffect(() => {
-    fetchUsers();
+    fetchUsers(1); // Reset to page 1 when filters change
   }, [searchTerm, selectedSpecialty]);
 
   // Récupérer les utilisateurs
-  const fetchUsers = async () => {
+   const fetchUsers = async (page = 1) => {
     try {
       setLoading(true);
-      const params: any = {};
-
-      if (searchTerm) params.search = searchTerm;
-      if (selectedSpecialty) params.specialite = selectedSpecialty;
-      console.log(selectedSpecialty);
+      const params = {
+        page,
+        limit: 10,
+        ...(searchTerm && { search: searchTerm }),
+        ...(selectedSpecialty && { specialite: selectedSpecialty })
+      };
 
       const response = await userAPI.getAll(params);
 
       if (response.data.success) {
         setUsers(response.data.data.users);
-        console.log(users);
-        setError('');
+        
+        // Handle pagination data
+        if (response.data.data.pagination) {
+          setPagination(response.data.data.pagination);
+        }
       }
-    } catch (err: any) {
-      console.error('Erreur lors du chargement des utilisateurs:', err);
-      setError(err.response?.data?.message || 'Erreur lors du chargement des données');
+    } catch (err) {
+      console.error('Error fetching users:', err);
     } finally {
       setLoading(false);
     }
   };
+
 
   // Récupérer les statistiques
   const fetchStats = async () => {
@@ -415,6 +424,36 @@ const UsersManagement: React.FC = () => {
                 ))}
               </tbody>
             </table>
+            {/* Pagination Controls */}
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-gray-600 mx-7">
+                Affichage de {((pagination.currentPage - 1) * pagination.perPage) + 1} à{' '}
+                {Math.min(pagination.currentPage * pagination.perPage, pagination.totalItems)} sur{' '}
+                {pagination.totalItems} utilisateurs
+              </div>
+              
+              <div className="flex gap-2 my-4 mx-16">
+                <button
+                  onClick={() => fetchUsers(pagination.currentPage - 1)}
+                  disabled={pagination.currentPage === 1}
+                  className="px-4 py-2 border rounded disabled:opacity-50"
+                >
+                  Précédent
+                </button>
+                
+                <span className="px-4 py-2">
+                  Page {pagination.currentPage} sur {pagination.totalPages}
+                </span>
+                
+                <button
+                  onClick={() => fetchUsers(pagination.currentPage + 1)}
+                  disabled={pagination.currentPage === pagination.totalPages}
+                  className="px-4 py-2 border rounded disabled:opacity-50"
+                >
+                  Suivant
+                </button>
+              </div>
+            </div>
           </div>
           {isEditModalOpen && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

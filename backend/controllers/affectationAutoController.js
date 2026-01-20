@@ -1,6 +1,10 @@
 // ============================================
 // affectationAutoController.js
 // ============================================
+import path from 'path';
+import fs from 'fs';
+import { jsPDF } from 'jspdf';
+
 import Affectation from '../models/Affectation.js';
 import User from '../models/User.js';
 import Tache from '../models/Tache.js';
@@ -9,7 +13,55 @@ import Notification from '../models/Notification.js';
 import Historique from '../models/Historique.js';
 
 /**
- * Générer une affectation automatique avec IA
+ * Génère un PDF du rapport et le sauvegarde sur le serveur
+ */
+const genererPDFRapport = (contenu, idTache, affectationId) => {
+  const pdf = new jsPDF('p', 'mm', 'a4');
+
+  const margeX = 15;
+  let y = 20;
+  const lineHeight = 7;
+
+  pdf.setFont('Times', 'Normal');
+  pdf.setFontSize(11);
+
+  const lignes = pdf.splitTextToSize(contenu, 180);
+
+  lignes.forEach((ligne) => {
+    if (y > 280) {
+      pdf.addPage();
+      y = 20;
+    }
+    pdf.text(ligne, margeX, y);
+    y += lineHeight;
+  });
+
+  // Créer le dossier uploads/rapports s'il n'existe pas
+  const uploadDir = path.join(process.cwd(), 'uploads', 'rapports');
+  if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+  }
+
+  // Générer le nom de fichier unique
+  const fileName = `rapport_ia_${affectationId}_${Date.now()}.pdf`;
+  const filePath = path.join(uploadDir, fileName);
+
+  // Sauvegarder le PDF
+  const pdfBuffer = pdf.output('arraybuffer');
+  fs.writeFileSync(filePath, Buffer.from(pdfBuffer));
+
+  // Retourner les métadonnées
+  return {
+    fileName: fileName,
+    filePath: `/uploads/rapports/${fileName}`,
+    mimeType: 'application/pdf',
+    size: fs.statSync(filePath).size,
+    createdAt: new Date()
+  };
+};
+
+/**
+ * Génére une affectation automatique avec IA
  * Analyse approfondie incluant :
  * - Historique des affectations
  * - Compatibilité profil/tâche
@@ -95,11 +147,11 @@ export const genererAffectationAutomatique = async (req, res) => {
       if (compatible) {
         candidatsCompatibles.push(auditeur);
       } else {
-        rapport += `❌ ${auditeur.NOM} ${auditeur.PRENOM} - ${raisonsIncompatibilite.join(', ')}\n`;
+        rapport += `✖ ${auditeur.NOM} ${auditeur.PRENOM} - ${raisonsIncompatibilite.join(', ')}\n`;
       }
     }
 
-    rapport += `\n✅ Candidats compatibles : ${candidatsCompatibles.length}/${tousLesAuditeurs.length}\n\n`;
+    rapport += `\n Candidats compatibles : ${candidatsCompatibles.length}/${tousLesAuditeurs.length}\n\n`;
 
     if (candidatsCompatibles.length < tache.NOMBRE_PLACES) {
       return res.status(400).json({
@@ -151,13 +203,13 @@ export const genererAffectationAutomatique = async (req, res) => {
 
       if (disponible) {
         candidatsDisponibles.push(auditeur);
-        rapport += `✅ ${auditeur.NOM} ${auditeur.PRENOM} - Disponible\n`;
+        rapport += ` ${auditeur.NOM} ${auditeur.PRENOM} - Disponible\n`;
       } else {
-        rapport += `⚠️ ${auditeur.NOM} ${auditeur.PRENOM} - Conflit : ${conflits.map(c => c.tache).join(', ')}\n`;
+        rapport += ` ${auditeur.NOM} ${auditeur.PRENOM} - Conflit : ${conflits.map(c => c.tache).join(', ')}\n`;
       }
     }
 
-    rapport += `\n✅ Candidats disponibles : ${candidatsDisponibles.length}/${candidatsCompatibles.length}\n\n`;
+    rapport += `\n Candidats disponibles : ${candidatsDisponibles.length}/${candidatsCompatibles.length}\n\n`;
 
     if (candidatsDisponibles.length < tache.NOMBRE_PLACES) {
       return res.status(400).json({
@@ -292,7 +344,7 @@ export const genererAffectationAutomatique = async (req, res) => {
         details
       });
 
-      rapport += `📊 ${auditeur.NOM} ${auditeur.PRENOM}\n`;
+      rapport += ` ${auditeur.NOM} ${auditeur.PRENOM}\n`;
       rapport += `   Score total: ${Math.round(score * 10) / 10}/100\n`;
       rapport += `   - Spécialité: ${details.specialite}/30\n`;
       rapport += `   - Grade: ${details.grade}/20\n`;
@@ -333,12 +385,12 @@ export const genererAffectationAutomatique = async (req, res) => {
           auditeur: `${candidat.auditeur.NOM} ${candidat.auditeur.PRENOM}`,
           tachesActives
         });
-        rapport += `⚠️ ${candidat.auditeur.NOM} ${candidat.auditeur.PRENOM} - ${tachesActives} tâches actives (surcharge potentielle)\n`;
+        rapport += ` ${candidat.auditeur.NOM} ${candidat.auditeur.PRENOM} - ${tachesActives} tâches actives (surcharge potentielle)\n`;
       }
     }
 
     if (surchargesDetectees.length === 0) {
-      rapport += `✅ Aucune surcharge détectée\n`;
+      rapport += ` Aucune surcharge détectée\n`;
     }
     rapport += `\n`;
 
@@ -382,7 +434,7 @@ export const genererAffectationAutomatique = async (req, res) => {
         const placesAvant = placesRestantes;
         placesRestantes -= vehicule.CAPACITE;
         
-        rapport += `✅ Sélectionné: ${vehicule.MARQUE} ${vehicule.MODELE} (${vehicule.IMMATRICULATION})\n`;
+        rapport += ` Sélectionné: ${vehicule.MARQUE} ${vehicule.MODELE} (${vehicule.IMMATRICULATION})\n`;
         rapport += `   Capacité: ${vehicule.CAPACITE} places\n`;
         rapport += `   Couvre: ${Math.min(vehicule.CAPACITE, placesAvant)} personne(s)\n`;
         rapport += `   Places restantes à couvrir: ${Math.max(0, placesRestantes)}\n\n`;
@@ -424,7 +476,7 @@ export const genererAffectationAutomatique = async (req, res) => {
           personnesRestantes -= personnesDansVehicule;
         });
       } else {
-        rapport += `\n✅ Un seul véhicule suffit (${vehiculesSelectionnes[0].CAPACITE} places disponibles)\n`;
+        rapport += `\n Un seul véhicule suffit (${vehiculesSelectionnes[0].CAPACITE} places disponibles)\n`;
       }
       
       rapport += `\n`;
@@ -554,6 +606,9 @@ export const confirmerAffectationAutomatique = async (req, res) => {
     // Créer l'ID de l'affectation
     const affectationId = `AFF_${Date.now()}`;
 
+    // Générer le PDF du rapport et obtenir les métadonnées
+    const rapportMetadata = genererPDFRapport(rapport, idTache, affectationId);
+
     // Créer le tableau des auditeurs
     const idAuditeurs = auditeursIds.map(id => ({
       ID_AUDITEUR: id,
@@ -562,7 +617,7 @@ export const confirmerAffectationAutomatique = async (req, res) => {
       REPONSE_DANS_DELAI: null
     }));
 
-    // Créer l'affectation
+    // Créer l'affectation avec les métadonnées du rapport
     const nouvelleAffectation = new Affectation({
       ID: affectationId,
       ID_TACHE: idTache,
@@ -571,13 +626,7 @@ export const confirmerAffectationAutomatique = async (req, res) => {
       DATE_AFFECTATION: new Date(),
       MODE_AFFECTATION: "Automatisé (IA)",
       STATUS: "À venir",
-      RAPPORT: {
-        fileName: `rapport_ia_${affectationId}.txt`,
-        filePath: `/rapports/${affectationId}.txt`,
-        mimeType: "text/plain",
-        size: rapport ? rapport.length : 0,
-        createdAt: new Date()
-      }
+      RAPPORT: rapportMetadata
     });
 
     await nouvelleAffectation.save();
@@ -585,6 +634,7 @@ export const confirmerAffectationAutomatique = async (req, res) => {
     // Créer les notifications pour chaque auditeur
     let notificationsCreees = 0;
     for (const auditeurId of auditeursIds) {
+      // Créer notification in-app
       await Notification.create({
         ID: `NOTIF_${Date.now()}_${auditeurId}`,
         ID_AUDITEUR: auditeurId,
@@ -601,7 +651,7 @@ export const confirmerAffectationAutomatique = async (req, res) => {
       ID_AUDITEUR: auditeursIds,
       ID_TACHE: idTache,
       ACTION: 'Affectation automatique (IA)',
-      DETAILS: `Affectation créée par l'IA pour la tâche ${tache.NOM} avec ${auditeursIds.length} auditeur(s)`,
+      DETAILS: rapport,
       DATE: new Date()
     });
 
@@ -609,6 +659,7 @@ export const confirmerAffectationAutomatique = async (req, res) => {
       success: true,
       message: "Affectation automatique confirmée avec succès",
       affectation: nouvelleAffectation,
+      rapport: rapportMetadata,
       notificationsCreees
     });
 
@@ -621,4 +672,3 @@ export const confirmerAffectationAutomatique = async (req, res) => {
     });
   }
 };
-

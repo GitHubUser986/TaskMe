@@ -22,6 +22,8 @@ import historiqueRoutes from "./routes/historiqueRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 
 import { startVehicleAvailabilityJob } from "./jobs/vehicleAvailabilityJob.js";
+import { startAffectationDeadlineJob } from "./jobs/affectationDeadlineJob.js";
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -103,6 +105,7 @@ const startServer = async () => {
     
     // THEN start the cron job (after MongoDB is connected)
     startVehicleAvailabilityJob();
+    startAffectationDeadlineJob();
     
     app.listen(PORT, () => {
       console.log(`Serveur démarré sur le port ${PORT}`);

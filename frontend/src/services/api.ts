@@ -65,13 +65,25 @@ export const authAPI = {
 
 // Utilisateurs
 export const userAPI = {
+  // For paginated table views
   getAll: (params?: {
     search?: string;
     specialite?: string;
     grade?: string;
     role?: string;
     actif?: boolean;
+    page?: number;
+    limit?: number;
   }) => api.get('/user', { params }),
+  
+  // For select dropdowns (non-paginated)
+  getAllForSelect: (params?: {
+    search?: string;
+    specialite?: string;
+    grade?: string;
+    role?: string;
+    actif?: boolean;
+  }) => api.get('/user', { params: { ...params, all: 'true' } }),
   
   getById: (id: string) =>
     api.get(`/user/${id}`),
@@ -97,16 +109,58 @@ export { dashboardAPI } from './dashboardAPI';
 
 // Véhicules
 export const vehiculeAPI = {
-  getAll: (params?: any) => api.get('/vehicule', { params }),
+    /**
+   * Get all vehicles with pagination (for tables)
+   */
+  getAll: (params?: {
+    search?: string;
+    disponible?: boolean;
+    marque?: string;
+    page?: number;
+    limit?: number;
+  }) => api.get('/vehicule', { params }),
+  
+  /**
+   * Get all vehicles without pagination (for selects)
+   */
+  getAllForSelect: (params?: {
+    search?: string;
+    disponible?: boolean;
+    marque?: string;
+  }) => api.get('/vehicule', { params: { ...params, all: 'true' } }),
   getById: (id: string) => api.get(`/vehicule/${id}`),
   create: (data: any) => api.post('/vehicule', data),
   update: (id: string, data: any) => api.put(`/vehicule/${id}`, data),
   delete: (id: string) => api.delete(`/vehicule/${id}`),
+    /**
+   * Get vehicle statistics
+   */
+  getStats: () => api.get('/vehicule/stats'),
+  
+  /**
+   * Get unique brands for filters
+   */
+  getBrands: () => api.get('/vehicule/brands'),
 };
 
 // Tâches
 export const tacheAPI = {
-  getAll: (params?: any) => api.get('/tache', { params }),
+  // For paginated table views
+  getAll: (params?: {
+    search?: string;
+    type?: string;
+    status?: string;
+    page?: number;
+    limit?: number;
+  }) => api.get('/tache', { params }),
+  
+  // For select dropdowns (non-paginated)
+  getAllForSelect: (params?: {
+    search?: string;
+    type?: string;
+    status?: string;
+  }) => api.get('/tache', { params: { ...params, all: 'true' } }),
+
   getById: (id: string) => api.get(`/tache/${id}`),
   
   // Method specifically for FormData
@@ -125,6 +179,7 @@ export const tacheAPI = {
   },
   
   delete: (id: string) => api.delete(`/tache/${id}`),
+  getStats: () => api.get('/tache/stats'),
 };
 
 // Affectations

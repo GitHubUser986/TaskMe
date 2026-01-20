@@ -112,7 +112,7 @@ const GlobalHistory: React.FC = () => {
     }
   };
 
-  // Enrichir l'historique avec les noms des tâches et des utilisateurs
+// Enrichir l'historique avec les noms des tâches et des utilisateurs
   const enrichHistoryWithNames = async (historyItems: GlobalHistoryItem[]): Promise<GlobalHistoryItem[]> => {
     try {
       // Récupérer toutes les tâches
@@ -120,8 +120,8 @@ const GlobalHistory: React.FC = () => {
       const taches = tachesResponse.data.data.taches;
       const tachesMap = new Map<string, Tache>(taches.map((t: any) => [t.ID, t]));
 
-      // Récupérer tous les utilisateurs
-      const usersResponse = await userAPI.getAll({ role: 'USER' });
+      // Récupérer TOUS les utilisateurs sans pagination
+      const usersResponse = await userAPI.getAllForSelect({});
       const users = usersResponse.data.data?.users || usersResponse.data.data || [];
       const usersMap = new Map<string, User>(users.map((u: any) => [u.ID, u]));
 
@@ -129,12 +129,11 @@ const GlobalHistory: React.FC = () => {
       return historyItems.map(item => {
         const tache = tachesMap.get(item.idTache || '');
         const user = usersMap.get(item.idAuditeur || '');
-        console.log(item.idAuditeur)
 
         return {
           ...item,
           taskName: tache?.NOM || 'Tâche inconnue',
-          userName: user ? `${user.PRENOM} ${user.NOM}` : 'Utilisateur inconnu'
+          userName: user ? `${user.PRENOM} ${user.NOM}` : `Utilisateur inconnu (${item.idAuditeur || 'N/A'})`
         };
       });
     } catch (err) {
