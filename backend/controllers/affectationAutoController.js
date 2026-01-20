@@ -64,7 +64,9 @@ export const genererAffectationAutomatique = async (req, res) => {
     let rapport = "=== RAPPORT D'ANALYSE IA ===\n\n";
     rapport += `Tâche : ${tache.NOM}\n`;
     rapport += `Places requises : ${tache.NOMBRE_PLACES}\n`;
-    rapport += `Période : ${tache.PERIODE_EXECUTION.DATE_DEBUT.toLocaleDateString()} - ${tache.PERIODE_EXECUTION.DATE_FIN.toLocaleDateString()}\n\n`;
+    rapport += `Période : ${tache.PERIODE_EXECUTION.DATE_DEBUT.toLocaleDateString()} - ${tache.PERIODE_EXECUTION.DATE_FIN.toLocaleDateString()}\n`;
+    rapport += `Nécessite véhicule : ${tache.NECESSITE_VEHICULE ? 'Oui' : 'Non'}\n`;
+    rapport += `Direction : ${tache.DIRECTION}\n\n`;
     rapport += `--- PHASE 1 : ANALYSE DE COMPATIBILITÉ ---\n`;
 
     for (const auditeur of tousLesAuditeurs) {
@@ -197,11 +199,6 @@ export const genererAffectationAutomatique = async (req, res) => {
       const totalAffectations = affectationsAuditeur.length;
       const tauxAcceptation = totalAffectations > 0 ? (tachesAcceptees / totalAffectations) * 100 : 100;
 
-      // Analyser l'historique des actions
-      const historiqueAuditeur = historique.filter(h =>
-        h.ID_AUDITEUR && h.ID_AUDITEUR.includes(auditeur.ID)
-      );
-
       // Calculer la date de dernière tâche
       let derniereTache = null;
       const affectationsAcceptees = affectations
@@ -243,7 +240,6 @@ export const genererAffectationAutomatique = async (req, res) => {
       score += 25;
 
       // 4. Score basé sur la charge de travail (15 points)
-      // Moins de tâches = score plus élevé
       const maxTaches = Math.max(...candidatsDisponibles.map(c => {
         return affectations.filter(aff =>
           aff.ID_AUDITEURS.some(a => a.ID_AUDITEUR === c.ID && a.DECISION === "Acceptée")
@@ -255,7 +251,6 @@ export const genererAffectationAutomatique = async (req, res) => {
       score += chargeScore;
 
       // 5. Score d'équité rémunération (20 points)
-      // Priorité aux auditeurs avec moins de tâches rémunérées
       if (tache.REMUNEREE) {
         const maxRemunerees = Math.max(...candidatsDisponibles.map(c => {
           return affectations.filter(aff => {
@@ -271,7 +266,6 @@ export const genererAffectationAutomatique = async (req, res) => {
       }
 
       // 6. Score d'historique (10 points)
-      // Bonus pour bon taux d'acceptation
       const historiqueScore = (tauxAcceptation / 100) * 10;
       details.historique = Math.round(historiqueScore);
       score += historiqueScore;
@@ -279,11 +273,10 @@ export const genererAffectationAutomatique = async (req, res) => {
       // 7. Ancienneté (bonus calculé sur la date de dernière tâche)
       if (derniereTache) {
         const joursDepuisDerniereTache = Math.floor((new Date() - new Date(derniereTache)) / (1000 * 60 * 60 * 24));
-        const ancienneteBonus = Math.min(joursDepuisDerniereTache / 30, 3); // Max 3 points pour 3+ mois
+        const ancienneteBonus = Math.min(joursDepuisDerniereTache / 30, 3);
         details.anciennete = Math.round(ancienneteBonus);
         score += ancienneteBonus;
       } else {
-        // Pas d'affectation précédente = priorité maximale
         details.anciennete = 5;
         score += 5;
       }
@@ -325,7 +318,7 @@ export const genererAffectationAutomatique = async (req, res) => {
     // 9. PHASE 5 : Détection des surcharges potentielles
     rapport += `--- PHASE 5 : ANALYSE DES SURCHARGES ---\n`;
     const surchargesDetectees = [];
-    const seuilSurcharge = 5; // Seuil de tâches actives
+    const seuilSurcharge = 5;
 
     for (const candidat of auditeursSelectionnes) {
       const tachesActives = affectations.filter(aff => {
@@ -349,10 +342,11 @@ export const genererAffectationAutomatique = async (req, res) => {
     }
     rapport += `\n`;
 
-    // 10. Sélectionner les véhicules si nécessaire
+    // 10. ENHANCED: Sélectionner les véhicules si nécessaire (MULTI-VEHICLE SUPPORT)
     let vehiculesSelectionnes = [];
     if (tache.NECESSITE_VEHICULE) {
       rapport += `--- PHASE 6 : SÉLECTION DES VÉHICULES ---\n`;
+      rapport += `Nombre de places requis: ${tache.NOMBRE_PLACES}\n\n`;
       
       const vehiculesDisponibles = await Vehicule.find({ 
         DISPONIBLE: true,
@@ -362,28 +356,77 @@ export const genererAffectationAutomatique = async (req, res) => {
       if (vehiculesDisponibles.length === 0) {
         return res.status(400).json({
           success: false,
-          message: "Aucun véhicule disponible pour cette direction"
+          message: `Aucun véhicule disponible pour la direction "${tache.DIRECTION}"`,
+          rapport
         });
       }
 
-      // Trier par capacité décroissante
+      rapport += `Véhicules disponibles dans la direction "${tache.DIRECTION}": ${vehiculesDisponibles.length}\n`;
+      vehiculesDisponibles.forEach(v => {
+        rapport += `  - ${v.MARQUE} ${v.MODELE} (${v.IMMATRICULATION}) - Capacité: ${v.CAPACITE} places\n`;
+      });
+      rapport += `\n`;
+
+      // Sort by capacity (descending) to minimize number of vehicles
       vehiculesDisponibles.sort((a, b) => b.CAPACITE - a.CAPACITE);
       
-      // Sélectionner le nombre minimum de véhicules nécessaires
+      // Select minimum number of vehicles needed
       let placesRestantes = tache.NOMBRE_PLACES;
+      let capaciteTotale = 0;
+      
       for (const vehicule of vehiculesDisponibles) {
         if (placesRestantes <= 0) break;
+        
         vehiculesSelectionnes.push(vehicule);
+        capaciteTotale += vehicule.CAPACITE;
+        const placesAvant = placesRestantes;
         placesRestantes -= vehicule.CAPACITE;
-        rapport += `🚗 ${vehicule.MARQUE} ${vehicule.MODELE} (${vehicule.IMMATRICULATION}) - Capacité: ${vehicule.CAPACITE}\n`;
+        
+        rapport += `✅ Sélectionné: ${vehicule.MARQUE} ${vehicule.MODELE} (${vehicule.IMMATRICULATION})\n`;
+        rapport += `   Capacité: ${vehicule.CAPACITE} places\n`;
+        rapport += `   Couvre: ${Math.min(vehicule.CAPACITE, placesAvant)} personne(s)\n`;
+        rapport += `   Places restantes à couvrir: ${Math.max(0, placesRestantes)}\n\n`;
       }
 
+      // Check if we have enough capacity
       if (placesRestantes > 0) {
+        const capaciteTotaleDisponible = vehiculesDisponibles.reduce((sum, v) => sum + v.CAPACITE, 0);
+        
         return res.status(400).json({
           success: false,
-          message: "Capacité de véhicules insuffisante"
+          message: `Capacité de véhicules insuffisante pour cette direction`,
+          details: {
+            placesRequises: tache.NOMBRE_PLACES,
+            vehiculesDisponibles: vehiculesDisponibles.length,
+            capaciteTotaleDisponible,
+            vehiculesSelectionnes: vehiculesSelectionnes.length,
+            capaciteSelectionnee: capaciteTotale,
+            manque: placesRestantes
+          },
+          rapport
         });
       }
+
+      // Summary
+      rapport += `--- RÉSUMÉ VÉHICULES ---\n`;
+      rapport += `Nombre de véhicules sélectionnés: ${vehiculesSelectionnes.length}\n`;
+      rapport += `Capacité totale: ${capaciteTotale} places\n`;
+      rapport += `Places requises: ${tache.NOMBRE_PLACES}\n`;
+      rapport += `Places excédentaires: ${capaciteTotale - tache.NOMBRE_PLACES}\n`;
+      
+      if (vehiculesSelectionnes.length > 1) {
+        rapport += `\n💡 Optimisation: ${vehiculesSelectionnes.length} véhicules nécessaires pour transporter ${tache.NOMBRE_PLACES} personne(s)\n`;
+        rapport += `Répartition suggérée:\n`;
+        let personnesRestantes = tache.NOMBRE_PLACES;
+        vehiculesSelectionnes.forEach((v, idx) => {
+          const personnesDansVehicule = Math.min(v.CAPACITE, personnesRestantes);
+          rapport += `  Véhicule ${idx + 1} (${v.IMMATRICULATION}): ${personnesDansVehicule}/${v.CAPACITE} places occupées\n`;
+          personnesRestantes -= personnesDansVehicule;
+        });
+      } else {
+        rapport += `\n✅ Un seul véhicule suffit (${vehiculesSelectionnes[0].CAPACITE} places disponibles)\n`;
+      }
+      
       rapport += `\n`;
     }
 
@@ -408,6 +451,9 @@ export const genererAffectationAutomatique = async (req, res) => {
     }
     if (surchargesDetectees.length > 0) {
       recommandations.push(`${surchargesDetectees.length} auditeur(s) pourrai(en)t être surchargé(s).`);
+    }
+    if (vehiculesSelectionnes.length > 1) {
+      recommandations.push(`${vehiculesSelectionnes.length} véhicules requis - vérifier la coordination logistique.`);
     }
     if (recommandations.length === 0) {
       recommandations.push("Affectation optimale selon tous les critères IA.");
@@ -454,7 +500,9 @@ export const genererAffectationAutomatique = async (req, res) => {
       details: {
         candidatsEvalues: tousLesAuditeurs.length,
         candidatsCompatibles: candidatsCompatibles.length,
-        candidatsDisponibles: candidatsDisponibles.length
+        candidatsDisponibles: candidatsDisponibles.length,
+        vehiculesNecessaires: vehiculesSelectionnes.length,
+        capaciteTotaleVehicules: vehiculesSelectionnes.reduce((sum, v) => sum + v.CAPACITE, 0)
       },
       analyse: {
         conflitsPotentiels: conflitsDetectes.length,

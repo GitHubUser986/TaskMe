@@ -9,7 +9,6 @@ const connectDB = async () => {
 
     // Afficher les collections disponibles
     const collections = await conn.connection.db.listCollections().toArray();
-    console.log('Collections disponibles:', collections.map(c => c.name).join(', '));
 
   } catch (error) {
     console.error(`Erreur de connexion MongoDB: ${error.message}`);

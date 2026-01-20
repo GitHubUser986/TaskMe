@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { tacheAPI } from '../../services/api';
@@ -20,6 +21,13 @@ interface Task {
   REMUNEREE: boolean;
   MONTANT: number;
   NECESSITE_VEHICULE: boolean;
+  FICHIER_ADMINISTRATIF?: {
+    fileName: string;
+    filePath: string;
+    mimeType: string;
+    size: number;
+    createdAt: string;
+  };
 }
 
 const TaskManagement: React.FC = () => {
@@ -43,7 +51,6 @@ const TaskManagement: React.FC = () => {
     try {
       setLoading(true);
       const response = await tacheAPI.getAll();
-
       setTasks(response.data.data.taches);
       setError('');
     } catch (err: any) {
@@ -91,6 +98,40 @@ const TaskManagement: React.FC = () => {
       'ligne Marrakech-Agadir': 'Marrakech - Agadir'
     };
     return directions[direction] || direction;
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  };
+
+  const handleDownloadFile = async (taskId: string) => {
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+      const token = localStorage.getItem('token');
+      
+      const response = await fetch(`${API_URL}/tache/file/${taskId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) throw new Error('Erreur lors du téléchargement');
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = selectedTask?.FICHIER_ADMINISTRATIF?.fileName || 'document.pdf';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Erreur téléchargement:', error);
+      alert('Erreur lors du téléchargement du fichier');
+    }
   };
 
   const filteredTasks = tasks.filter(task => {
@@ -470,6 +511,52 @@ const TaskManagement: React.FC = () => {
                   </p>
                 </div>
               </div>
+
+              {/* Administrative File Section */}
+              {selectedTask.FICHIER_ADMINISTRATIF && (
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Fichier Administratif</h3>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3 flex-1">
+                        <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                          <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">
+                            {selectedTask.FICHIER_ADMINISTRATIF.fileName}
+                          </p>
+                          <div className="flex items-center gap-3 mt-1">
+                            <p className="text-xs text-gray-500">
+                              {formatFileSize(selectedTask.FICHIER_ADMINISTRATIF.size)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(selectedTask.FICHIER_ADMINISTRATIF.createdAt).toLocaleDateString('fr-FR')}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDownloadFile(selectedTask.ID)}
+                        className="flex-shrink-0 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+                      >
+                        📥 Télécharger
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!selectedTask.FICHIER_ADMINISTRATIF && (
+                <div className="border-t border-gray-200 pt-6">
+                  <h3 className="text-sm font-semibold text-gray-500 uppercase mb-3">Fichier Administratif</h3>
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-center">
+                    <p className="text-sm text-gray-500">Aucun fichier administratif disponible</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="border-t border-gray-200 p-6 flex gap-3 justify-end">
@@ -513,7 +600,7 @@ const TaskManagement: React.FC = () => {
             <form onSubmit={handleSubmitEdit} className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nom de la tâche *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nom de la tâche<span className="text-red-500">*</span></label>
                   <input
                     type="text"
                     name="NOM"
@@ -525,7 +612,7 @@ const TaskManagement: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Type *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Type<span className="text-red-500">*</span></label>
                   <select
                     name="TYPE"
                     value={formData.TYPE || ''}
@@ -544,7 +631,7 @@ const TaskManagement: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Description<span className="text-red-500">*</span></label>
                 <textarea
                   name="DESCRIPTION"
                   value={formData.DESCRIPTION || ''}
@@ -557,7 +644,7 @@ const TaskManagement: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Date de début *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date de début<span className="text-red-500">*</span></label>
                   <input
                     type="date"
                     name="PERIODE_EXECUTION.DATE_DEBUT"
@@ -569,7 +656,7 @@ const TaskManagement: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Date de fin *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date de fin<span className="text-red-500">*</span></label>
                   <input
                     type="date"
                     name="PERIODE_EXECUTION.DATE_FIN"
@@ -583,7 +670,7 @@ const TaskManagement: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Direction *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Direction<span className="text-red-500">*</span></label>
                   <select
                     name="DIRECTION"
                     value={formData.DIRECTION || ''}
@@ -599,7 +686,7 @@ const TaskManagement: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Nombre de places *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nombre de places<span className="text-red-500">*</span></label>
                   <input
                     type="number"
                     name="NOMBRE_PLACES"
@@ -613,7 +700,7 @@ const TaskManagement: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Type de spécialité *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Type de spécialité<span className="text-red-500">*</span></label>
                 <select
                   name="COMMUNE_OU_PARTICULIERE"
                   value={formData.COMMUNE_OU_PARTICULIERE || ''}
@@ -674,6 +761,7 @@ const TaskManagement: React.FC = () => {
                       value={formData.MONTANT || ''}
                       onChange={handleInputChange}
                       min="0"
+                      step="1"
                       className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>

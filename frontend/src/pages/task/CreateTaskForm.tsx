@@ -605,7 +605,7 @@ const CreateTaskForm: React.FC = () => {
                       }`}
                       placeholder="Montant en MAD"
                       min="0"
-                      step="0.01"
+                      step="1"
                       value={formData.MONTANT}
                       onChange={handleInputChange}
                       disabled={loading}

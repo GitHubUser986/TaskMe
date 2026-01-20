@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 
-// ⭐ CRITICAL: Load environment variables FIRST before any other imports
+// CRITICAL: Load environment variables FIRST before any other imports
 dotenv.config();
 
 // Now import everything else
@@ -20,6 +20,8 @@ import chatRoutes from "./routes/chatRoutes.js";
 import notificationRoutes from "./routes/notificationRoutes.js";
 import historiqueRoutes from "./routes/historiqueRoutes.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
+
+import { startVehicleAvailabilityJob } from "./jobs/vehicleAvailabilityJob.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -96,7 +98,11 @@ app.use((err, req, res, next) => {
 // Connexion à MongoDB et lancement du serveur
 const startServer = async () => {
   try {
+    // First connect to MongoDB
     await connectDB();
+    
+    // THEN start the cron job (after MongoDB is connected)
+    startVehicleAvailabilityJob();
     
     app.listen(PORT, () => {
       console.log(`Serveur démarré sur le port ${PORT}`);
