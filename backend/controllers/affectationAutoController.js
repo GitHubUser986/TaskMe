@@ -61,7 +61,7 @@ const genererPDFRapport = (contenu, idTache, affectationId) => {
 };
 
 /**
- * Génére une affectation automatique avec IA
+ * Génére une affectation automatique avec Affectation Automatique
  * Analyse approfondie incluant :
  * - Historique des affectations
  * - Compatibilité profil/tâche
@@ -103,7 +103,7 @@ export const genererAffectationAutomatique = async (req, res) => {
       ROLE: { $in: ['USER'] }
     });
 
-    console.log(`[IA] ${tousLesAuditeurs.length} auditeurs trouvés`);
+    console.log(`[Affectation Automatique] ${tousLesAuditeurs.length} auditeurs trouvés`);
 
     // 3. Récupérer toutes les affectations existantes pour analyse
     const affectations = await Affectation.find();
@@ -113,7 +113,7 @@ export const genererAffectationAutomatique = async (req, res) => {
 
     // 5. PHASE 1 : Analyse de compatibilité de base
     const candidatsCompatibles = [];
-    let rapport = "=== RAPPORT D'ANALYSE IA ===\n\n";
+    let rapport = "=== RAPPORT D'ANALYSE Affectation Automatique ===\n\n";
     rapport += `Tâche : ${tache.NOM}\n`;
     rapport += `Places requises : ${tache.NOMBRE_PLACES}\n`;
     rapport += `Période : ${tache.PERIODE_EXECUTION.DATE_DEBUT.toLocaleDateString()} - ${tache.PERIODE_EXECUTION.DATE_FIN.toLocaleDateString()}\n`;
@@ -220,8 +220,8 @@ export const genererAffectationAutomatique = async (req, res) => {
       });
     }
 
-    // 7. PHASE 3 : Analyse de l'historique et calcul des scores IA
-    rapport += `--- PHASE 3 : ANALYSE HISTORIQUE ET SCORING IA ---\n`;
+    // 7. PHASE 3 : Analyse de l'historique et calcul des scores Affectation Automatique
+    rapport += `--- PHASE 3 : ANALYSE HISTORIQUE ET SCORING Affectation Automatique ---\n`;
     const candidatsAvecScores = [];
 
     for (const auditeur of candidatsDisponibles) {
@@ -264,7 +264,7 @@ export const genererAffectationAutomatique = async (req, res) => {
         derniereTache = affectationsAcceptees[0].DATE_AFFECTATION;
       }
 
-      // CALCUL DU SCORE IA
+      // CALCUL DU SCORE Affectation Automatique
       let score = 0;
       const details = {
         anciennete: 0,
@@ -401,14 +401,13 @@ export const genererAffectationAutomatique = async (req, res) => {
       rapport += `Nombre de places requis: ${tache.NOMBRE_PLACES}\n\n`;
       
       const vehiculesDisponibles = await Vehicule.find({ 
-        DISPONIBLE: true,
-        DIRECTION: tache.DIRECTION
+        DISPONIBLE: true
       });
 
       if (vehiculesDisponibles.length === 0) {
         return res.status(400).json({
           success: false,
-          message: `Aucun véhicule disponible pour la direction "${tache.DIRECTION}"`,
+          message: `Aucun véhicule est disponible`,
           rapport
         });
       }
@@ -482,12 +481,12 @@ export const genererAffectationAutomatique = async (req, res) => {
       rapport += `\n`;
     }
 
-    // 11. Calculer le taux de confiance de l'IA
+    // 11. Calculer le taux de confiance de l'Affectation Automatique
     const scoresAuditeurs = auditeursSelectionnes.map(c => c.score);
     const scoreMoyen = scoresAuditeurs.reduce((a, b) => a + b, 0) / scoresAuditeurs.length;
     const tauxConfiance = Math.min(Math.round(scoreMoyen), 100);
 
-    rapport += `--- RÉSUMÉ DE L'ANALYSE IA ---\n`;
+    rapport += `--- RÉSUMÉ DE L'ANALYSE Affectation Automatique ---\n`;
     rapport += `Taux de confiance: ${tauxConfiance}%\n`;
     rapport += `Conflits potentiels détectés: ${conflitsDetectes.length}\n`;
     rapport += `Surcharges détectées: ${surchargesDetectees.length}\n`;
@@ -508,7 +507,7 @@ export const genererAffectationAutomatique = async (req, res) => {
       recommandations.push(`${vehiculesSelectionnes.length} véhicules requis - vérifier la coordination logistique.`);
     }
     if (recommandations.length === 0) {
-      recommandations.push("Affectation optimale selon tous les critères IA.");
+      recommandations.push("Affectation optimale selon tous les critères Affectation Automatique.");
     }
 
     rapport += `\nRecommandations:\n`;
@@ -567,12 +566,12 @@ export const genererAffectationAutomatique = async (req, res) => {
 
     res.json({
       success: true,
-      message: "Proposition générée avec succès par l'IA",
+      message: "Proposition générée avec succès par l'Affectation Automatique",
       proposition
     });
 
   } catch (error) {
-    console.error('Erreur génération IA:', error);
+    console.error('Erreur génération Affectation Automatique:', error);
     res.status(500).json({
       success: false,
       message: "Erreur lors de la génération de l'affectation automatique",
@@ -638,7 +637,7 @@ export const confirmerAffectationAutomatique = async (req, res) => {
       await Notification.create({
         ID: `NOTIF_${Date.now()}_${auditeurId}`,
         ID_AUDITEUR: auditeurId,
-        MESSAGE: `Nouvelle tâche affectée par l'IA : ${tache.NOM}. Vous avez 24h pour répondre.`,
+        MESSAGE: `Nouvelle tâche affectée par l'Affectation Automatique : ${tache.NOM}. Vous avez 24h pour répondre.`,
         TYPE: 'Information',
         LUE: false
       });
@@ -664,7 +663,7 @@ export const confirmerAffectationAutomatique = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Erreur confirmation IA:', error);
+    console.error('Erreur confirmation Affectation Automatique:', error);
     res.status(500).json({
       success: false,
       message: "Erreur lors de la confirmation",

@@ -269,7 +269,7 @@ const AssignementList: React.FC = () => {
                 <option value="">Tous les modes</option>
                 <option value="Manuel">Manuel</option>
                 <option value="Semi-automatisé">Semi-automatisé</option>
-                <option value="Automatisé (IA)">Automatisé (IA)</option>
+                <option value="Automatisé (IA)">Automatisé</option>
               </select>
 
               {(searchTerm || statusFilter || modeFilter) && (

@@ -71,65 +71,70 @@ const ChatInternal: React.FC = () => {
 
   };
 
-  // Charger les contacts depuis la collection Affectation
-  const loadContacts = async () => {
-    if (!selectedTask || !user?.ID) return;
+// Charger les contacts depuis la collection Affectation
+const loadContacts = async () => {
+  if (!selectedTask || !user?.ID) return;
+  
+  try {
+    const affectationsResponse = await affectationAPI.getByTask(selectedTask.ID);
+const affectation = Array.isArray(affectationsResponse.data) 
+  ? affectationsResponse.data[0] 
+  : affectationsResponse.data;
     
-    try {
-      const affectationsResponse = await affectationAPI.getByTask(selectedTask.ID);
-      const affectations = affectationsResponse.data;
-      
-      const auditeurIds = affectations
-        .filter((aff: any) => !excludedDecisions.includes(aff.DECISION))
-        .flatMap((aff: any) => {
-          if (Array.isArray(aff.ID_AUDITEUR)) {
-            return aff.ID_AUDITEUR;
-          }
-          return [aff.ID_AUDITEUR];
-        })
-        .filter((id: string) => id && id !== user.ID);
-      
-      const uniqueAuditeurIds = [...new Set(auditeurIds)];
-      
-      if (uniqueAuditeurIds.length === 0) {
-        setContacts([]);
-        setActiveContact(null);
-        return;
-      }
-      
-      const participantsData: Contact[] = [];
-      
-      for (const auditeurId of uniqueAuditeurIds as string[]) {
-        try {
-          const userResponse = await userAPI.getById(auditeurId);
-          const userData = userResponse.data.data.user;
-          
-          participantsData.push({
-            id: userData.ID,
-            name: `${userData.PRENOM} ${userData.NOM}`,
-            email: userData.EMAIL,
-            status: 'online',
-            lastActivity: userData.DERNIERE_CONNEXION ? new Date(userData.DERNIERE_CONNEXION) : undefined,
-            lastMessage: undefined,
-            lastMessageDate: undefined,
-            unread: undefined
-          });
-        } catch (err) {
-          console.error(`Erreur lors du chargement de l'utilisateur ${auditeurId}:`, err);
-        }
-      }
-      
-      setContacts(participantsData);
-      
-      if (participantsData.length > 0 && !activeContact) {
-        setActiveContact(participantsData[0]);
-      }
-      
-    } catch (err: any) {
-      console.error('Erreur lors du chargement des contacts:', err);
-      setError('Erreur lors du chargement des contacts');
+    // Vérifier si l'affectation existe et a des auditeurs
+    if (!affectation || !affectation.ID_AUDITEURS || affectation.ID_AUDITEURS.length === 0) {
+      setContacts([]);
+      setActiveContact(null);
+      return;
     }
-  };
+    
+    // Extraire les IDs des auditeurs avec décision acceptée
+    const auditeurIds = affectation.ID_AUDITEURS
+      .filter((auditeur: any) => !excludedDecisions.includes(auditeur.DECISION))
+      .map((auditeur: any) => auditeur.ID_AUDITEUR)
+      .filter((id: string) => id && id !== user.ID);
+    
+    const uniqueAuditeurIds = [...new Set(auditeurIds)];
+    
+    if (uniqueAuditeurIds.length === 0) {
+      setContacts([]);
+      setActiveContact(null);
+      return;
+    }
+    
+    const participantsData: Contact[] = [];
+    
+    for (const auditeurId of uniqueAuditeurIds as string[]) {
+      try {
+        const userResponse = await userAPI.getById(auditeurId);
+        const userData = userResponse.data.data.user;
+        
+        participantsData.push({
+          id: userData.ID,
+          name: `${userData.PRENOM} ${userData.NOM}`,
+          email: userData.EMAIL,
+          status: 'online',
+          lastActivity: userData.DERNIERE_CONNEXION ? new Date(userData.DERNIERE_CONNEXION) : undefined,
+          lastMessage: undefined,
+          lastMessageDate: undefined,
+          unread: undefined
+        });
+      } catch (err) {
+        console.error(`Erreur lors du chargement de l'utilisateur ${auditeurId}:`, err);
+      }
+    }
+    
+    setContacts(participantsData);
+    
+    if (participantsData.length > 0 && !activeContact) {
+      setActiveContact(participantsData[0]);
+    }
+    
+  } catch (err: any) {
+    console.error('Erreur lors du chargement des contacts:', err);
+    setError('Erreur lors du chargement des contacts');
+  }
+};
 
   // Mettre à jour les contacts avec les infos des messages
   const updateContactsWithMessages = React.useCallback(() => {
@@ -300,43 +305,41 @@ const ChatInternal: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4">
+      <div className="w-7xl mx-auto px-4">
         <div className="mb-8 relative">
-          <div className="flex flex-col md:flex-row gap-4 bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 p-8 relative">
-            <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-32 -mt-32"></div>
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full -ml-24 -mb-24"></div>
-            
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-3">
-                <h1 className="text-3xl font-bold text-gray-800 mb-2">Chat Interne</h1>
-              </div>
-              <p className="text-gray-600">Communiquez avec votre équipe sur vos tâches</p>
-              
-              {/* Sélecteur de tâche */}
-              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border-1 border-white-500 mt-3">
-                <label className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
-                  <Users className="w-4 h-4" />
-                  Sélectionner une tâche
-                </label>
-                <select
-              value={selectedTask?.ID || ''}
-              onChange={(e) => {
-                const task = tasks.find(t => t.ID === e.target.value);
-                setSelectedTask(task || null);
-                setActiveContact(null);
-              }}
-              className="w-full md:w-96 px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-100"
-            >
-              <option value="">-- Sélectionner une tâche --</option>
-              {tasks.map(task => (
-                <option key={task.ID} value={task.ID}>
-                  {task.NOM}
-                </option>
-              ))}
-            </select>
-              </div>
-            </div>
-          </div>
+<div className="flex flex-col md:flex-row gap-4 bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 p-8 relative">
+  
+  <div className="relative z-10 w-full">
+    <div className="flex items-center gap-3 mb-3">
+      <h1 className="text-3xl font-bold text-gray-800 mb-2">Chat Interne</h1>
+    </div>
+    <p className="text-gray-600">Communiquez avec votre équipe sur vos tâches</p>
+    
+    {/* Sélecteur de tâche */}
+    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border-1 border-white-500 mt-3">
+      <label className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
+        <Users className="w-4 h-4" />
+        Sélectionner une tâche
+      </label>
+      <select
+        value={selectedTask?.ID || ''}
+        onChange={(e) => {
+          const task = tasks.find(t => t.ID === e.target.value);
+          setSelectedTask(task || null);
+          setActiveContact(null);
+        }}
+        className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-100"
+      >
+        <option value="">-- Sélectionner une tâche --</option>
+        {tasks.map(task => (
+          <option key={task.ID} value={task.ID}>
+            {task.NOM}
+          </option>
+        ))}
+      </select>
+    </div>
+  </div>
+</div>
           
           {error && (
             <div className="mt-4 bg-red-50 border-2 border-red-300 text-red-800 px-6 py-4 rounded-2xl font-semibold shadow-lg">

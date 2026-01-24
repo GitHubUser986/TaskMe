@@ -91,10 +91,10 @@ router.post('/semi-auto/confirm', confirmerAffectationSemiAutomatique);
 // DELETE - Annuler une affectation semi-automatique
 router.delete('/semi-auto/cancel/:idAffectation', annulerAffectationSemiAutomatique);
 
-// POST - Générer une proposition d'affectation automatique (IA)
+// POST - Générer une proposition d'affectation automatique
 router.post('/auto/generate', genererAffectationAutomatique);
 
-// POST - Confirmer une affectation automatique (IA)
+// POST - Confirmer une affectation automatique
 router.post('/auto/confirm', confirmerAffectationAutomatique);
 
 // POST create new affectation (route générique)
@@ -435,7 +435,7 @@ router.put('/deleguer/:idAuditeur/:idTache', async (req, res) => {
     await affectation.save();
 
     const auditeurInitial = await User.findOne({ ID: idAuditeur });
-    const nomAuditeur = auditeurInitial
+    const nomAuditeur = auditeurInitial.NOM || auditeurInitial.PRENOM
       ? `${auditeurInitial.NOM} ${auditeurInitial.PRENOM}`
       : "Auditeur inconnu";
 

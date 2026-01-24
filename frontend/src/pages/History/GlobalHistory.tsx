@@ -271,30 +271,41 @@ const GlobalHistory: React.FC = () => {
     return rapportsMap.get(item.idTache) || null;
   };
 
-  const exportToCSV = () => {
-    const headers = ['Utilisateur', 'Tâche', 'Date', 'Statut', 'Type', 'Détails'];
-    const rows = history.map(item => [
-      item.userName,
-      item.taskName,
-      new Date(item.date).toLocaleDateString('fr-FR'),
-      item.status,
-      item.type,
-      item.details || '-'
-    ]);
+ const exportToCSV = () => {
+  const headers = ['Utilisateur', 'Tâche', 'Date', 'Statut', 'Type', 'Détails'];
+  const rows = history.map(item => [
+    item.userName,
+    item.taskName,
+    new Date(item.date).toLocaleDateString('fr-FR'),
+    item.status,
+    item.type,
+    item.details || '-'
+  ]);
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
-
-    const blob = new Blob(['\uFEFF' + csvContent], {
-      type: 'text/csv;charset=utf-8;'
-    });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `historique_global_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
+  const escapeCSVCell = (cell: any) => {
+    const cellStr = String(cell || '').trim();
+    return `"${cellStr.replace(/"/g, '""')}"`;
   };
+
+  // Utiliser point-virgule comme séparateur (format Excel FR)
+  const csvContent = [
+    headers.map(escapeCSVCell).join(';'),
+    ...rows.map(row => row.map(escapeCSVCell).join(';'))
+  ].join('\r\n');
+
+  const BOM = '\uFEFF';
+  const blob = new Blob([BOM + csvContent], {
+    type: 'text/csv;charset=utf-8;'
+  });
+  
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = `historique_global_${new Date().toISOString().split('T')[0]}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(link.href);
+};
 
   if (loading) {
     return (
@@ -393,7 +404,7 @@ const GlobalHistory: React.FC = () => {
                 <option value="">Tous</option>
                 <option value="Manuel">Manuel</option>
                 <option value="Semi-automatisé">Semi-automatisé</option>
-                <option value="Automatisé (IA)">Automatisé (IA)</option>
+                <option value="Automatisé (IA)">Automatisé (Affectation Automatique)</option>
               </select>
             </div>
           </div>

@@ -281,13 +281,13 @@ export const affectationAPI = {
     }),
 
   /**
-   * Générer une proposition d'affectation automatique (IA)
+   * Générer une proposition d'affectation automatique
    */
   generateAuto: (data: { idTache: string }) =>
     api.post('/affectation/auto/generate', data),
   
   /**
-   * Confirmer une affectation automatique (IA)
+   * Confirmer une affectation automatique
    */
   confirmAuto: (data: {
     idTache: string;

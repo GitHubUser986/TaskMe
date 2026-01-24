@@ -148,19 +148,19 @@ const AutoAssignmentPage = () => {
     setProposition(null);
 
     try {
-      console.log('Génération IA pour tâche:', selectedTache);
+      console.log('Génération Affectation Automatique pour tâche:', selectedTache);
       const response = await affectationAPI.generateAuto({ idTache: selectedTache });
-      console.log('Réponse génération IA:', response.data);
+      console.log('Réponse génération Affectation Automatique:', response.data);
       
       if (response.data.success) {
         setProposition(response.data.proposition);
-        setSuccess('Proposition générée avec succès par l\'IA !');
+        setSuccess('Proposition générée avec succès par l\'Affectation Automatique !');
       } else {
         setError(response.data.message || 'Erreur lors de la génération');
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
-        console.error('Erreur génération IA:', err);
+        console.error('Erreur génération Affectation Automatique:', err);
         setError(extraireMessageErreur(err));
       }
     } finally {
@@ -231,11 +231,11 @@ const AutoAssignmentPage = () => {
               <div className="flex items-center mb-2">
                 <Brain className="w-10 h-10 text-purple-600 mr-3" />
                 <h1 className="text-4xl font-bold text-gray-800">
-                  Affectation Automatique (IA)
+                  Affectation Automatique
                 </h1>
               </div>
               <p className="text-gray-600 ml-13">
-                L'intelligence artificielle analyse en profondeur l'historique, les compétences et la disponibilité pour optimiser les affectations
+                Analyse automatique en profondeur d'historique, des compétences et de la disponibilité pour optimiser les affectations
               </p>
             </div>
             <button
@@ -249,11 +249,11 @@ const AutoAssignmentPage = () => {
           </div>
         </div>
 
-        {/* Critères IA */}
+        {/* Critères Affectation Automatique */}
         <div className="bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg shadow-lg p-6 mb-8 text-white">
           <h2 className="text-xl font-semibold mb-4 flex items-center">
             <Brain className="w-6 h-6 mr-2" />
-            Critères d'analyse de l'IA
+            Critères d'analyse
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex items-start space-x-3">
@@ -318,7 +318,7 @@ const AutoAssignmentPage = () => {
           <div className="bg-white rounded-lg shadow-md p-6 mb-8">
             <h2 className="text-xl font-semibold text-gray-800 mb-4 flex items-center">
               <Search className="w-5 h-5 mr-2 text-purple-600" />
-              Sélectionner une tâche pour analyse IA
+              Sélectionner une tâche pour analyse Affectation Automatique
             </h2>
             
             {loadingTaches ? (
@@ -420,12 +420,12 @@ const AutoAssignmentPage = () => {
                   {loading ? (
                     <>
                       <Loader className="w-5 h-5 mr-2 animate-spin" />
-                      Analyse IA en cours...
+                      Analyse Affectation Automatique en cours...
                     </>
                   ) : (
                     <>
                       <Brain className="w-5 h-5 mr-2" />
-                      Générer l'affectation avec l'IA
+                      Générer l'affectation avec l'Affectation Automatique
                     </>
                   )}
                 </button>
@@ -434,15 +434,15 @@ const AutoAssignmentPage = () => {
           </div>
         )}
 
-        {/* Proposition IA */}
+        {/* Proposition Affectation Automatique */}
         {proposition && (
           <div className="space-y-6">
-            {/* Analyse IA */}
+            {/* Analyse Affectation Automatique */}
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-semibold text-gray-800 flex items-center">
                   <Brain className="w-6 h-6 mr-2 text-purple-600" />
-                  Analyse IA de l'affectation
+                  Analyse Affectation Automatique
                 </h2>
                 <div className={`px-4 py-2 rounded-full font-semibold ${getConfidenceColor(proposition.analyse.tauxConfiance)}`}>
                   Confiance: {proposition.analyse.tauxConfiance}%
@@ -477,7 +477,7 @@ const AutoAssignmentPage = () => {
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
                   <h4 className="font-semibold text-yellow-900 mb-2 flex items-center">
                     <AlertTriangle className="w-4 h-4 mr-2" />
-                    Recommandations de l'IA
+                    Recommandations de l'Affectation Automatique
                   </h4>
                   <ul className="space-y-1">
                     {proposition.analyse.recommandations.map((rec, idx) => (
@@ -492,7 +492,7 @@ const AutoAssignmentPage = () => {
             <div className="bg-white rounded-lg shadow-md p-6">
               <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
                 <Users className="w-5 h-5 mr-2 text-green-500" />
-                Auditeurs sélectionnés par l'IA ({proposition.auditeurs.length})
+                Auditeurs sélectionnés par l'Affectation Automatique ({proposition.auditeurs.length})
               </h3>
               <div className="space-y-3">
                 {proposition.auditeurs.map((auditeur, index) => (
@@ -595,7 +595,7 @@ const AutoAssignmentPage = () => {
               >
                 <h3 className="text-lg font-semibold text-gray-800 flex items-center">
                   <FileText className="w-5 h-5 mr-2 text-blue-500" />
-                  Rapport détaillé de l'IA
+                  Rapport détaillé de l'Affectation Automatique
                 </h3>
                 <span className="text-gray-500">{showRapport ? '▼' : '▶'}</span>
               </button>
@@ -611,7 +611,7 @@ const AutoAssignmentPage = () => {
               <div className="flex items-start space-x-3 mb-4">
                 <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-gray-600">
-                  L'IA a analysé {proposition.details.candidatsEvalues} candidats et recommande cette affectation avec un taux de confiance de {proposition.analyse.tauxConfiance}%. 
+                  L'Affectation Automatique a analysé {proposition.details.candidatsEvalues} candidats et recommande cette affectation avec un taux de confiance de {proposition.analyse.tauxConfiance}%. 
                   En confirmant, l'affectation sera enregistrée dans la base de données, un historique sera créé et des notifications seront envoyées aux auditeurs.
                 </p>
               </div>
@@ -629,7 +629,7 @@ const AutoAssignmentPage = () => {
                   ) : (
                     <>
                       <CheckCircle className="w-5 h-5 mr-2" />
-                      Confirmer l'affectation IA
+                      Confirmer l'affectation automatique
                     </>
                   )}
                 </button>

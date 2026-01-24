@@ -1,6 +1,7 @@
 import express from "express";
 import Chat from "../models/Chat.js";
 import User from "../models/User.js";
+import Affectation from "../models/Affectation.js";
 
 const router = express.Router();
 
@@ -65,18 +66,19 @@ router.get("/user/:userId/taches", async (req, res) => {
 // GET tous les participants d'une tâche (contacts pour le chat)
 router.get("/tache/:idTache/participants", async (req, res) => {
     try {
-        // Trouver tous les utilisateurs qui ont participé au chat de cette tâche
-        const messages = await Chat.find({ ID_TACHE: req.params.idTache });
+        // Trouver l'affectation de cette tâche
+        const affectation = await Affectation.findOne({ ID_TACHE: req.params.idTache });
         
-        const userIds = new Set();
-        messages.forEach(msg => {
-            userIds.add(msg.ID_EXPEDITEUR);
-            userIds.add(msg.ID_DESTINATAIRE);
-        });
+        if (!affectation) {
+            return res.status(404).json({ message: "Aucune affectation trouvée pour cette tâche" });
+        }
         
-        // Récupérer les infos des utilisateurs
+        // Extraire les IDs des auditeurs depuis l'affectation
+        const auditeurIds = affectation.ID_AUDITEURS.map(auditeur => auditeur.ID_AUDITEUR);
+        
+        // Récupérer les infos des utilisateurs (auditeurs)
         const users = await User.find({ 
-            ID: { $in: Array.from(userIds) },
+            ID: { $in: auditeurIds },
             ACTIF: true 
         }).select('ID NOM PRENOM EMAIL ROLE DERNIERE_CONNEXION');
         
@@ -85,22 +87,31 @@ router.get("/tache/:idTache/participants", async (req, res) => {
             users.map(async (user) => {
                 const lastMessage = await Chat.findOne({
                     ID_TACHE: req.params.idTache,
-                    ID_EXPEDITEUR: user.ID
+                    $or: [
+                        { ID_EXPEDITEUR: user.ID },
+                        { ID_DESTINATAIRE: user.ID }
+                    ]
                 }).sort({ DATE_ENVOI: -1 });
                 
-                // Compter les messages non lus (si besoin)
+                // Compter les messages non lus de cet utilisateur vers l'utilisateur actuel
                 const unreadCount = await Chat.countDocuments({
                     ID_TACHE: req.params.idTache,
-                    ID_DESTINATAIRE: req.query.currentUserId, // L'utilisateur actuel
+                    ID_DESTINATAIRE: req.query.currentUserId,
                     ID_EXPEDITEUR: user.ID,
-                    // On pourrait ajouter un champ LU: false si nécessaire
+                    LU: false
                 });
+                
+                // Récupérer la décision de l'auditeur depuis l'affectation
+                const auditeurInfo = affectation.ID_AUDITEURS.find(
+                    a => a.ID_AUDITEUR === user.ID
+                );
                 
                 return {
                     id: user.ID,
                     name: `${user.PRENOM} ${user.NOM}`,
                     email: user.EMAIL,
                     role: user.ROLE,
+                    decision: auditeurInfo?.DECISION,
                     lastMessage: lastMessage ? lastMessage.MESSAGE : null,
                     lastMessageTime: lastMessage ? lastMessage.DATE_ENVOI : null,
                     unread: unreadCount > 0 ? unreadCount : undefined,
