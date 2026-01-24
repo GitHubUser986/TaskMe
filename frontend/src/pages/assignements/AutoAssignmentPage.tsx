@@ -116,7 +116,7 @@ const AutoAssignmentPage = () => {
   const chargerTaches = async () => {
     setLoadingTaches(true);
     try {
-      const responseTaches = await tacheAPI.getAll();
+      const responseTaches = await tacheAPI.getAllForSelect();
       const responseAffectations = await affectationAPI.getAll();
       
       const tachesAffecteesIds = new Set(

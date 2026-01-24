@@ -116,7 +116,7 @@ const GlobalHistory: React.FC = () => {
   const enrichHistoryWithNames = async (historyItems: GlobalHistoryItem[]): Promise<GlobalHistoryItem[]> => {
     try {
       // Récupérer toutes les tâches
-      const tachesResponse = await tacheAPI.getAll();
+      const tachesResponse = await tacheAPI.getAllForSelect();
       const taches = tachesResponse.data.data.taches;
       const tachesMap = new Map<string, Tache>(taches.map((t: any) => [t.ID, t]));
 

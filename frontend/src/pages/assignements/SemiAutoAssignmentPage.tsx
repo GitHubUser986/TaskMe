@@ -107,22 +107,27 @@ const chargerTaches = async () => {
     setLoadingTaches(true);
     try {
       // Charger toutes les tâches
-      const responseTaches = await tacheAPI.getAll();
+      const responseTaches = await tacheAPI.getAllForSelect();
+
+      const taches = responseTaches.data.data.taches;
       
       // Charger toutes les affectations pour filtrer les tâches déjà affectées
       const responseAffectations = await affectationAPI.getAll();
       
       // Extraire les IDs des tâches déjà affectées
+      const affectations = responseAffectations.data;
+
       const tachesAffecteesIds = new Set(
-        responseAffectations.data.map((affectation: any) => affectation.ID_TACHE)
+        affectations.map((affectation: any) => affectation.ID_TACHE)
       );
       
       // Filtrer les tâches pour ne garder que celles qui ne sont pas affectées
-      const tachesDisponibles = responseTaches.data.data.taches.filter(
+      console.log(responseAffectations);
+      const tachesDisponibles = taches.filter(
         (tache: Tache) => !tachesAffecteesIds.has(tache.ID)
       );
       
-      console.log('Tâches chargées:', responseTaches.data.length);
+      console.log('Tâches chargées:', responseTaches.data.data.taches.length);
       console.log('Tâches déjà affectées:', tachesAffecteesIds.size);
       console.log('Tâches disponibles:', tachesDisponibles.length);
       

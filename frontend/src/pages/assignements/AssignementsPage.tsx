@@ -87,7 +87,7 @@ const AssignementList: React.FC = () => {
               const vehiculePromises = aff.ID_VEHICULE.map(async (vehId: string) => {
                 try {
                   const vehResponse = await vehiculeAPI.getById(vehId);
-                  const veh = vehResponse.data;
+                  const veh = vehResponse.data.data;
                   return `${veh.MARQUE} ${veh.MODELE} - ${veh.IMMATRICULATION}`;
                 } catch (error) {
                   console.error(`Erreur véhicule ${vehId}:`, error);

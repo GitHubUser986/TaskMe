@@ -128,6 +128,7 @@ export const vehiculeAPI = {
     disponible?: boolean;
     marque?: string;
   }) => api.get('/vehicule', { params: { ...params, all: 'true' } }),
+  
   getById: (id: string) => api.get(`/vehicule/${id}`),
   create: (data: any) => api.post('/vehicule', data),
   update: (id: string, data: any) => api.put(`/vehicule/${id}`, data),

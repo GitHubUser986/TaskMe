@@ -44,12 +44,12 @@ const EditVehicleForm: React.FC = () => {
         setLoadingData(true);
         const response = await vehiculeAPI.getById(id);
         setFormData({
-          ID: response.data.ID,
-          IMMATRICULATION: response.data.IMMATRICULATION,
-          MARQUE: response.data.MARQUE,
-          MODELE: response.data.MODELE,
-          DISPONIBLE: response.data.DISPONIBLE,
-          CAPACITE: response.data.CAPACITE
+          ID: response.data.data.ID,
+          IMMATRICULATION: response.data.data.IMMATRICULATION,
+          MARQUE: response.data.data.MARQUE,
+          MODELE: response.data.data.MODELE,
+          DISPONIBLE: response.data.data.DISPONIBLE,
+          CAPACITE: response.data.data.CAPACITE
         });
       } catch (err: any) {
         console.error('Erreur lors du chargement du véhicule:', err);

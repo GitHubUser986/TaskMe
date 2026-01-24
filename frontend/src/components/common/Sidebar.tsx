@@ -49,7 +49,7 @@ const Sidebar: React.FC = () => {
       to: '/vehicles',
       icon: Car,
       label: 'Gestion des véhicules',
-      roles: ['SUPERADMIN'],
+      roles: ['SUPERADMIN', 'ADMIN'],
     },
   ];
 
