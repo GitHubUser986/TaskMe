@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Loader, Users, Car, Calendar, FileText, X } from 'lucide-react';
+import { ArrowLeft, Save, Loader, Users, Car, Calendar, FileText, CheckCircle, AlertCircle } from 'lucide-react';
 import { affectationAPI, tacheAPI, userAPI, vehiculeAPI } from '../../services/api';
 
 interface Auditeur {
@@ -54,6 +54,8 @@ const AssignmentEditPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
 
   const [loading, setLoading] = useState(true);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [assignment, setAssignment] = useState<Assignment | null>(null);
   const [task, setTask] = useState<Task | null>(null);
@@ -84,12 +86,12 @@ const AssignmentEditPage: React.FC = () => {
       setTask(taskResponse.data.data.tache);
 
       // Fetch all users
-      const usersResponse = await userAPI.getAll();
+      const usersResponse = await userAPI.getAllForSelect();
       setAllUsers(usersResponse.data.data.users || usersResponse.data);
 
       // Fetch all vehicles
-      const vehiclesResponse = await vehiculeAPI.getAll();
-      setAllVehicles(vehiclesResponse.data);
+      const vehiclesResponse = await vehiculeAPI.getAllForSelect();
+      setAllVehicles(vehiclesResponse.data.data);
 
       // Set initial values
       setSelectedAuditors(assignmentData.ID_AUDITEURS.map((a: Auditeur) => a.ID_AUDITEUR));
@@ -129,7 +131,7 @@ const AssignmentEditPage: React.FC = () => {
     e.preventDefault();
 
     if (selectedAuditors.length === 0) {
-      alert('Veuillez sélectionner au moins un auditeur');
+      setErrorMessage('Veuillez sélectionner au moins un auditeur');
       return;
     }
 
@@ -158,12 +160,12 @@ const AssignmentEditPage: React.FC = () => {
       };
 
       await affectationAPI.update(id!, updatedData);
-      alert('Affectation mise à jour avec succès');
+      setSuccessMessage('Affectation mise à jour avec succès');
       navigate('/assignment/list');
 
     } catch (error) {
       console.error('Erreur lors de la mise à jour:', error);
-      alert('Erreur lors de la mise à jour. Veuillez réessayer.');
+      setErrorMessage('Erreur lors de la mise à jour. Veuillez réessayer.');
     } finally {
       setSaving(false);
     }
@@ -205,6 +207,23 @@ const AssignmentEditPage: React.FC = () => {
     );
   }
 
+  
+  if (successMessage) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+        <div className="bg-white rounded-lg shadow-md p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <CheckCircle className="w-10 h-10 text-green-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Succès !</h2>
+          <p className="text-gray-600 mb-4">{successMessage}</p>
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="text-sm text-gray-500 mt-2">Redirection en cours...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 pb-8">
       <div className="max-w-5xl mx-auto px-4 py-6">
@@ -241,6 +260,15 @@ const AssignmentEditPage: React.FC = () => {
               </div>
             </div>
           </div>
+          {errorMessage && (
+          <div className="mb-6 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Erreur</p>
+              <p>{errorMessage}</p>
+            </div>
+          </div>
+        )}
 
           {/* General Settings */}
           <div className="bg-white rounded-lg shadow-sm p-6">

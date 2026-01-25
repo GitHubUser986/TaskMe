@@ -67,6 +67,7 @@ const IndividualHistory: React.FC = () => {
         return Math.round(diffHeures * 100) / 100; // 2 décimales
       };
 
+      console.log(response.data)
 
       // Transformer les données pour le format attendu
       const formattedHistory = response.data.map((item: any) => ({
@@ -75,7 +76,7 @@ const IndividualHistory: React.FC = () => {
         date: item.createdAt || item.DATE_AFFECTATION,
         status: item.STATUT || 'N/A',
         details: item.DETAILS || item.RAPPORT || '-',
-        type: item.ALGORITHME || 'Affectation',
+        type: item.MODE_AFFECTATION || 'Affectation',
         heures: calculerHeures(item.DATE_DEBUT, item.DATE_FIN),
         dateDebut: item.DATE_DEBUT,
         dateFin: item.DATE_FIN
@@ -93,8 +94,8 @@ const IndividualHistory: React.FC = () => {
         terminees: formattedHistory.filter((h: HistoryItem) =>
           h.status === 'En Attente').length,
         enCours: formattedHistory.filter((h: HistoryItem) =>
-          h.status === 'Acceptée' || h.status === 'En cours').length,
-        heuresTotal: HeuresTotales.reduce((sum: number, h: HistoryItem) =>
+          h.status === 'En Attente').length,
+        heuresTotal: formattedHistory.reduce((sum: number, h: HistoryItem) =>
           sum + (h.heures || 0), 0)
       });
 
@@ -114,8 +115,11 @@ const IndividualHistory: React.FC = () => {
     const badges: { [key: string]: string } = {
       'Acceptée': 'bg-green-100 text-green-800',
       'En Attente': 'bg-yellow-100 text-yellow-800',
-      'Refusée': 'bg-red-100 text-blue-800',
+      'Affectation': 'bg-yellow-100 text-yellow-800',
+      'Refusée': 'bg-red-100 text-red-800',
+      'Refus de délégation': 'bg-red-100 text-red-800',
       'Déléguée': 'bg-purple-100 text-gray-800',
+      'Délégation de tâche': 'bg-purple-100 text-gray-800',
       'N/A': 'bg-gray-100 text-gray-600'
     };
     return badges[status] || 'bg-gray-100 text-gray-800';

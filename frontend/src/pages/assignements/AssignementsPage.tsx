@@ -313,7 +313,7 @@ const AssignementList: React.FC = () => {
                         <div className="font-medium">{assignment.tacheNom}</div>
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-900">
-                        <div className="max-w-xs truncate" title={assignment.auditeursNoms}>
+                        <div className="max-w-48 truncate" title={assignment.auditeursNoms}>
                           {assignment.auditeursNoms}
                         </div>
                         <div className="text-xs text-gray-500">{assignment.ID_AUDITEURS.length} auditeur(s)</div>
@@ -331,7 +331,7 @@ const AssignementList: React.FC = () => {
                           {assignment.MODE_AFFECTATION}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap relative">
+                      <td className="px-6 py-4 whitespace-nowrap relative over">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

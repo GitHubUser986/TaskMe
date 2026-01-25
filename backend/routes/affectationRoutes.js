@@ -120,7 +120,17 @@ router.put('/update/:id', async (req, res) => {
     if (!updatedAffectation) {
       return res.status(404).json({ message: "Affectation non trouvée" });
     }
-    
+
+    // Créer un historique de la modification
+    await Historique.create({
+      ID: `HIST_${Date.now()}`,
+      ID_AUDITEUR: updatedAffectation.ID_AUDITEURS.map(a => a.ID_AUDITEUR),
+      ID_TACHE: updatedAffectation.ID_TACHE,
+      ACTION: "Modification d'affectation",
+      DETAILS: `Affectation ${updatedAffectation.ID} modifiée - Tâche: ${updatedAffectation.ID_TACHE}`,
+      DATE: new Date()
+    });
+
     res.json(updatedAffectation);
   } catch (error) {
     console.error("Erreur mise à jour affectation:", error);
