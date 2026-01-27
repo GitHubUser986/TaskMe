@@ -7,7 +7,8 @@ const historiqueSchema = new mongoose.Schema({
   DETAILS: { type: String, required: true },
   ACTION: { type: String, required: true }
 }, {
-  collection: "historique"
+  collection: "historique",
+  timestamps: true // Adds createdAt and updatedAt automatically
 });
 
 export default mongoose.model("Historique", historiqueSchema);
