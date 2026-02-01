@@ -101,9 +101,9 @@ const AddUser: React.FC = () => {
     }
 
     // Validation Spécialité
-    if (!formData.SPECIALITE) {
-      newErrors.SPECIALITE = 'La spécialité est requise';
-    }
+    if (formData.ROLE === 'USER' && !formData.SPECIALITE) {
+     newErrors.SPECIALITE = 'La spécialité est requise';
+   }
 
     // Validation Grade
     if (!formData.GRADE) {
@@ -135,9 +135,9 @@ const AddUser: React.FC = () => {
         MOT_DE_PASSE: formData.MOT_DE_PASSE,
         ROLE: formData.ROLE,
         GRADE: formData.GRADE,
-        SPECIALITE: formData.SPECIALITE
+        SPECIALITE: formData.ROLE === 'USER' ? formData.SPECIALITE : (formData.ROLE === 'ADMIN' ? 'Auditeur élu' : '')
       };
-
+console.log(userData);
       const response = await userAPI.create(userData);
 
       if (response.data.success) {
@@ -360,30 +360,40 @@ const AddUser: React.FC = () => {
             {/* Spécialité et Grade */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
-                <label htmlFor="SPECIALITE" className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Briefcase className="w-4 h-4 inline mr-2" />
-                  Spécialité <span className="text-red-500">*</span>
+                  Spécialité <span className="text-red-500">{formData.ROLE === 'USER' && '*'}</span>
                 </label>
-                <select
-                  id="SPECIALITE"
-                  name="SPECIALITE"
-                  value={formData.SPECIALITE}
-                  onChange={handleChange}
-                  className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
+                {formData.ROLE === 'ADMIN' ? (
+                  <input
+                    type="text"
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value="Auditeur élu"
+                    disabled
+                  />
+                ) : formData.ROLE === 'SUPERADMIN' ? (
+                  <input
+                    type="text"
+                    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    value="Aucune spécialité"
+                    disabled
+                  />
+                ) : (
+                  <select
+                    name="SPECIALITE"
+                    className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${
                     errors.SPECIALITE ? 'border-red-500' : 'border-gray-300'
                   }`}
-                  disabled={loading}
-                >
-                  <option value="">Sélectionnez une spécialité</option>
-                  {specialites.map((spec) => (
-                    <option key={spec} value={spec}>{spec}</option>
-                  ))}
-                </select>
-                {errors.SPECIALITE && (
-                  <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
-                    <AlertCircle className="w-4 h-4" />
-                    {errors.SPECIALITE}
-                  </p>
+                    value={formData.SPECIALITE}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                  >
+                    <option value="">Sélectionner...</option>
+                    {specialites.map((spec) => (
+                      <option key={spec} value={spec}>{spec}</option>
+                    ))}
+                  </select>
                 )}
               </div>
 

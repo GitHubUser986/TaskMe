@@ -125,7 +125,14 @@ const UsersManagement: React.FC = () => {
     if (!selectedUser) return;
 
     try {
-      const response = await userAPI.update(selectedUser._id, formData);
+      // Préparer les données en fonction du rôle
+      const updatedData = {
+        ...formData,
+        SPECIALITE: formData.ROLE === 'USER' ? formData.SPECIALITE : 
+                   (formData.ROLE === 'ADMIN' ? 'Auditeur élu' : '')
+      };
+
+      const response = await userAPI.update(selectedUser._id, updatedData);
       if (response.data.success) {
         // Mettre à jour localement la liste des users
         setUsers(users.map(u => u._id === selectedUser._id ? response.data.user : u));
@@ -456,92 +463,168 @@ const UsersManagement: React.FC = () => {
             </div>
           </div>
           {isEditModalOpen && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-              <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-                <div className='sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between'>
-                <h2 className="text-2xl font-bold text-gray-900">Éditer Utilisateur</h2>
-
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+              <div className="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-fadeIn">
+                {/* Modal Header */}
+                <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-6 border-b border-blue-800">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">Modifier l'utilisateur</h2>
+                      <p className="text-blue-100 mt-1 text-sm">Mettez à jour les informations de l'utilisateur</p>
+                    </div>
+                    <button
+                      onClick={() => setIsEditModalOpen(false)}
+                      className="text-white hover:bg-blue-800 rounded-lg p-2 transition-colors"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-                <form onSubmit={handleEditSubmit} className="p-6 space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 my-3">Prénom *</label>
-                    <input
-                      type="text"
-                      placeholder="Prénom"
-                      value={formData.PRENOM}
-                      onChange={e => setFormData({ ...formData, PRENOM: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
-                    <label className="block text-sm font-medium text-gray-700 my-3">Nom *</label>
-                    <input
-                      type="text"
-                      placeholder="Nom"
-                      value={formData.NOM}
-                      onChange={e => setFormData({ ...formData, NOM: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      required
-                    />
+
+                {/* Modal Body */}
+                <form onSubmit={handleEditSubmit} className="overflow-y-auto max-h-[calc(90vh-180px)]">
+                  <div className="p-8 space-y-6">
+                    {/* Personal Information Section */}
+                    <div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Prénom <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Entrez le prénom"
+                            value={formData.PRENOM}
+                            onChange={e => setFormData({ ...formData, PRENOM: e.target.value })}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Nom <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="Entrez le nom"
+                            value={formData.NOM}
+                            onChange={e => setFormData({ ...formData, NOM: e.target.value })}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            required
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contact & Access Section */}
+                    <div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Email <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="email"
+                            placeholder="exemple@email.com"
+                            value={formData.EMAIL}
+                            onChange={e => setFormData({ ...formData, EMAIL: e.target.value })}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                            required
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Rôle <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={formData.ROLE}
+                            onChange={e => {
+                              const newRole = e.target.value;
+                              setFormData({ 
+                                ...formData, 
+                                ROLE: newRole,
+                                SPECIALITE: newRole === 'USER' ? formData.SPECIALITE : ''
+                              });
+                            }}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                            required
+                          >
+                            <option value="SUPERADMIN">Super Administrateur</option>
+                            <option value="ADMIN">Coordinateur</option>
+                            <option value="USER">Auditeur</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Professional Information Section */}
+                    <div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Grade <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            value={formData.GRADE}
+                            onChange={e => setFormData({ ...formData, GRADE: e.target.value })}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                            required
+                          >
+                            <option value="A">Grade A</option>
+                            <option value="B">Grade B</option>
+                            <option value="C">Grade C</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Spécialité {formData.ROLE === 'USER' && <span className="text-red-500">*</span>}
+                          </label>
+                          {formData.ROLE === 'ADMIN' ? (
+                            <div className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-blue-50 text-gray-700 flex items-center gap-2">
+                              <span className="font-medium">Auditeur élu</span>
+                            </div>
+                          ) : formData.ROLE === 'SUPERADMIN' ? (
+                            <div className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-purple-50 text-gray-700 flex items-center gap-2">
+                              <span className="font-medium">Aucune spécialité</span>
+                            </div>
+                          ) : (
+                            <select
+                              value={formData.SPECIALITE}
+                              onChange={e => setFormData({ ...formData, SPECIALITE: e.target.value })}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white"
+                              required
+                            >
+                              <option value="">Sélectionner une spécialité...</option>
+                              <option value="Auditeur pédagogique">Auditeur pédagogique</option>
+                              <option value="Auditeur d'orientation">Auditeur d'orientation</option>
+                              <option value="Auditeur de planification">Auditeur de planification</option>
+                              <option value="Auditeur des services financiers">Auditeur des services financiers</option>
+                            </select>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                  <label className="block text-sm font-medium text-gray-700 my-3">Email *</label>
-                  <input
-                    type="email"
-                    placeholder="Email"
-                    value={formData.EMAIL}
-                    onChange={e => setFormData({ ...formData, EMAIL: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                  <label className="block text-sm font-medium text-gray-700 my-3">Rôle *</label>
-                  <select
-                    value={formData.ROLE}
-                    onChange={e => setFormData({ ...formData, ROLE: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="SUPERADMIN">Administrateur</option>
-                    <option value="ADMIN">Coordinateur</option>
-                    <option value="USER">Auditeur</option>
-                  </select>
-                  </div>
-                  <div>
-                  <label className="block text-sm font-medium text-gray-700 my-3">Grade *</label>
-                  <select
-                    value={formData.GRADE}
-                    onChange={e => setFormData({ ...formData, GRADE: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="A">A</option>
-                    <option value="B">B</option>
-                    <option value="C">C</option>
-                  </select>
-                  <label className="block text-sm font-medium text-gray-700 my-3">Spécialité *</label>
-                  <select
-                    value={formData.SPECIALITE}
-                    onChange={e => setFormData({ ...formData, SPECIALITE: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="Auditeur pédagogique">Auditeur pédagogique</option>
-                    <option value="Auditeur d'orientation">Auditeur d'orientation</option>
-                    <option value="Auditeur de planification">Auditeur de planification</option>
-                    <option value="Auditeur des services financiers">Auditeur des services financiers</option>
-                  </select>
-                  </div>
-                  </div>
-                  <div className="flex justify-end gap-2 mt-3">
+
+                  {/* Modal Footer */}
+                  <div className="border-t border-gray-200 px-8 py-6 bg-gray-50 flex justify-end gap-3">
                     <button
                       type="button"
                       onClick={() => setIsEditModalOpen(false)}
-                      className="px-6 py-2 border border-gray-300 text-gray-700 font-medium rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+                      className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all"
                     >
                       Annuler
                     </button>
-                    <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                      Sauvegarder
+                    <button 
+                      type="submit" 
+                      className="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Enregistrer les modifications
                     </button>
                   </div>
                 </form>
