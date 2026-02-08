@@ -25,6 +25,7 @@ const Dashboard: React.FC = () => {
 
     const totalHoursPerAuditor = data.auditors.reduce((sum, a) => sum + a.hours, 0) / data.auditors.length;
     const maxHours = Math.max(...data.auditors.map(a => a.hours));
+    console.log(maxHours);
     
     // Calculer le minimum seulement sur les auditeurs avec des heures
     const minHours = auditorsWithHours.length > 0 

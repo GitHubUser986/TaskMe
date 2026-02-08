@@ -79,7 +79,22 @@ const UsersManagement: React.FC = () => {
       const response = await userAPI.getAll(params);
 
       if (response.data.success) {
-        setUsers(response.data.data.users);
+        // Filter out any invalid user objects
+        const allUsers = response.data.data.users || [];
+        const validUsers = allUsers.filter(
+          (user: any) => user && user.NOM && user.PRENOM && user.EMAIL
+        );
+        
+        // Log warning if some users were filtered out
+        if (allUsers.length !== validUsers.length) {
+          console.warn(
+            `Filtered out ${allUsers.length - validUsers.length} invalid user(s). ` +
+            `Invalid users:`, 
+            allUsers.filter((u: any) => !u || !u.NOM || !u.PRENOM || !u.EMAIL)
+          );
+        }
+        
+        setUsers(validUsers);
         
         // Handle pagination data
         if (response.data.data.pagination) {
@@ -88,6 +103,7 @@ const UsersManagement: React.FC = () => {
       }
     } catch (err) {
       console.error('Error fetching users:', err);
+      setError('Erreur lors du chargement des utilisateurs. Veuillez réessayer.');
     } finally {
       setLoading(false);
     }
@@ -350,7 +366,7 @@ const UsersManagement: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {users.map((user) => (
+                {users.filter(user => user && user.NOM && user.PRENOM).map((user) => (
                   <tr key={user._id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col gap-1">

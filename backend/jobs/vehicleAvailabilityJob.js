@@ -28,13 +28,13 @@ async function updateVehicleAvailability() {
     const todayTasks = await Tache.find({
       $or: [
         // Tasks that start today
-        { DATE_DEBUT: { $gte: startOfDay, $lte: endOfDay } },
+        { 'PERIODE_EXECUTION.DATE_DEBUT': { $gte: startOfDay, $lte: endOfDay } },
         // Tasks that end today
-        { DATE_FIN: { $gte: startOfDay, $lte: endOfDay } },
+        { 'PERIODE_EXECUTION.DATE_FIN': { $gte: startOfDay, $lte: endOfDay } },
         // Tasks that span across today (started before and end after)
         {
-          DATE_DEBUT: { $lte: startOfDay },
-          DATE_FIN: { $gte: endOfDay }
+          'PERIODE_EXECUTION.DATE_DEBUT': { $lte: startOfDay },
+          'PERIODE_EXECUTION.DATE_FIN': { $gte: endOfDay }
         }
       ]
     }).select('ID');

@@ -130,7 +130,7 @@ const MyTasks: React.FC = () => {
 
   const fetchAuditeurs = async () => {
     try {
-      const response = await userAPI.getAll({ role: 'USER' });
+      const response = await userAPI.getAllForSelect({ role: 'USER' });
       setAuditeurs(response.data.data.users || response.data.data || []);
     } catch (err) {
       console.error('Erreur chargement auditeurs:', err);

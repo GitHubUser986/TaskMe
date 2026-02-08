@@ -168,8 +168,12 @@ const CreateTaskForm: React.FC = () => {
       newErrors.SPECIALITES_CONCERNEES = 'Au moins une spécialité doit être sélectionnée';
     } 
     
-    if(formData.TYPE == "Particulière" && formData.SPECIALITES_CONCERNEES.length != 1) {
+    if(formData.COMMUNE_OU_PARTICULIERE == "Particulière" && formData.SPECIALITES_CONCERNEES.length != 1) {
       newErrors.SPECIALITES_CONCERNEES = 'Vous devez choisir une seule spécialité tant que le type de spécialité est particulier';
+    }
+
+    if(formData.COMMUNE_OU_PARTICULIERE == "Commune" && formData.NOMBRE_PLACES <= 1) {
+      newErrors.NOMBRE_PLACES = 'Vous devez avoir au moins 2 places tant que le type de spécialité est commune';
     }
 
     if (formData.GRADES_CONCERNES.length === 0) {
@@ -485,6 +489,12 @@ const CreateTaskForm: React.FC = () => {
                   <option value="Particulière">Particulière</option>
                   <option value="Commune">Commune</option>
                 </select>
+                {errors.TYPE && (
+                  <p className="mt-1 text-sm text-red-600 flex items-center gap-1">
+                    <AlertCircle className="w-4 h-4" />
+                    {errors.TYPE}
+                  </p>
+                )}
               </div>
             </div>
 

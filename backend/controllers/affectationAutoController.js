@@ -466,7 +466,7 @@ export const genererAffectationAutomatique = async (req, res) => {
       rapport += `Places excédentaires: ${capaciteTotale - tache.NOMBRE_PLACES}\n`;
       
       if (vehiculesSelectionnes.length > 1) {
-        rapport += `\n💡 Optimisation: ${vehiculesSelectionnes.length} véhicules nécessaires pour transporter ${tache.NOMBRE_PLACES} personne(s)\n`;
+        rapport += `\n Optimisation: ${vehiculesSelectionnes.length} véhicules nécessaires pour transporter ${tache.NOMBRE_PLACES} personne(s)\n`;
         rapport += `Répartition suggérée:\n`;
         let personnesRestantes = tache.NOMBRE_PLACES;
         vehiculesSelectionnes.forEach((v, idx) => {

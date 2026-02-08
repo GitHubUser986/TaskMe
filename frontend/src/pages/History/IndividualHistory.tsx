@@ -94,7 +94,7 @@ const IndividualHistory: React.FC = () => {
         terminees: formattedHistory.filter((h: HistoryItem) =>
           h.status === 'En Attente').length,
         enCours: formattedHistory.filter((h: HistoryItem) =>
-          h.status === 'En Attente').length,
+          h.status === 'Acceptée').length,
         heuresTotal: formattedHistory.reduce((sum: number, h: HistoryItem) =>
           sum + (h.heures || 0), 0)
       });

@@ -145,11 +145,11 @@ const genererRapportContraintes = (validationResult, tache) => {
   rapport += `Période: ${new Date(tache.PERIODE_EXECUTION.DATE_DEBUT).toLocaleDateString()} - ${new Date(tache.PERIODE_EXECUTION.DATE_FIN).toLocaleDateString()}\n\n`;
   
   if (validationResult.contraintesNonRespectees.length === 0) {
-    rapport += `✓ Toutes les contraintes sont respectées.\n`;
+    rapport += `Toutes les contraintes sont respectées.\n`;
     return rapport;
   }
   
-  rapport += `⚠ CONTRAINTES NON RESPECTÉES:\n\n`;
+  rapport += `CONTRAINTES NON RESPECTÉES:\n\n`;
   
   validationResult.contraintesNonRespectees.forEach((contrainte, index) => {
     rapport += `${index + 1}. ${contrainte.type.toUpperCase()}\n`;
@@ -188,10 +188,11 @@ export const validerAffectationManuelle = async (req, res) => {
     // 1. Vérifier la disponibilité des auditeurs
     for (const auditeurId of auditeursIds) {
       const conflits = await checkAuditeurDisponibilite(auditeurId, tache);
+      const auditeur = await User.findOne({ ID : auditeurId});
       if (conflits.length > 0) {
         contraintesNonRespectees.push({
           type: "disponibilite_auditeur",
-          message: `L'auditeur ${auditeurId} n'est pas disponible durant la période d'exécution`,
+          message: `L'auditeur ${auditeur.NOM} ${auditeur.PRENOM} n'est pas disponible durant la période d'exécution`,
           details: conflits
         });
       }
@@ -201,10 +202,11 @@ export const validerAffectationManuelle = async (req, res) => {
     if (vehiculesIds && vehiculesIds.length > 0) {
       for (const vehiculeId of vehiculesIds) {
         const conflits = await checkVehiculeDisponibilite(vehiculeId, tache);
+        const vehicule = await Vehicule.findOne({ ID : vehiculeId});
         if (conflits.length > 0) {
           contraintesNonRespectees.push({
             type: "disponibilite_vehicule",
-            message: `Le véhicule ${vehiculeId} n'est pas disponible durant la période d'exécution`,
+            message: `Le véhicule ${vehicule.IMMATRICULATION} - ${vehicule.MARQUE} ${vehicule.MODELE} n'est pas disponible durant la période d'exécution`,
             details: conflits
           });
         }

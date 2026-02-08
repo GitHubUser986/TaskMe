@@ -307,39 +307,39 @@ const affectation = Array.isArray(affectationsResponse.data)
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="w-7xl mx-auto px-4">
         <div className="mb-8 relative">
-<div className="flex flex-col md:flex-row gap-4 bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 p-8 relative">
-  
-  <div className="relative z-10 w-full">
-    <div className="flex items-center gap-3 mb-3">
-      <h1 className="text-3xl font-bold text-gray-800 mb-2">Chat Interne</h1>
-    </div>
-    <p className="text-gray-600">Communiquez avec votre équipe sur vos tâches</p>
-    
-    {/* Sélecteur de tâche */}
-    <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border-1 border-white-500 mt-3">
-      <label className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
-        <Users className="w-4 h-4" />
-        Sélectionner une tâche
-      </label>
-      <select
-        value={selectedTask?.ID || ''}
-        onChange={(e) => {
-          const task = tasks.find(t => t.ID === e.target.value);
-          setSelectedTask(task || null);
-          setActiveContact(null);
-        }}
-        className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-100"
-      >
-        <option value="">-- Sélectionner une tâche --</option>
-        {tasks.map(task => (
-          <option key={task.ID} value={task.ID}>
-            {task.NOM}
-          </option>
-        ))}
-      </select>
-    </div>
-  </div>
-</div>
+          <div className="flex flex-col md:flex-row gap-4 bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 p-8 relative">
+            
+            <div className="relative z-10 w-full">
+              <div className="flex items-center gap-3 mb-3">
+                <h1 className="text-3xl font-bold text-gray-800 mb-2">Chat Interne</h1>
+              </div>
+              <p className="text-gray-600">Communiquez avec votre équipe sur vos tâches</p>
+              
+              {/* Sélecteur de tâche */}
+              <div className="bg-white/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border-1 border-white-500 mt-3">
+                <label className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
+                  <Users className="w-4 h-4" />
+                  Sélectionner une tâche
+                </label>
+                <select
+                  value={selectedTask?.ID || ''}
+                  onChange={(e) => {
+                    const task = tasks.find(t => t.ID === e.target.value);
+                    setSelectedTask(task || null);
+                    setActiveContact(null);
+                  }}
+                  className="w-full px-4 py-2 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-100"
+                >
+                  <option value="">-- Sélectionner une tâche --</option>
+                  {tasks.map(task => (
+                    <option key={task.ID} value={task.ID}>
+                      {task.NOM}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
           
           {error && (
             <div className="mt-4 bg-red-50 border-2 border-red-300 text-red-800 px-6 py-4 rounded-2xl font-semibold shadow-lg">

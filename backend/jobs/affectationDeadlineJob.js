@@ -165,12 +165,12 @@ export function startAffectationDeadlineJob() {
     });
   }
   
-  // Schedule to run every 30 minutes
-  cron.schedule('*/30 * * * *', () => {
+  // Schedule to run every 5 minutes
+  cron.schedule('*/5 * * * *', () => {
     verifyAffectationDeadlines();
   });
   
-  console.log('Affectation deadline verification cron job scheduled (runs every 30 minutes)');
+  console.log('Affectation deadline verification cron job scheduled (runs every 5 minutes)');
 }
 
 // Export the verification function in case you need to trigger it manually

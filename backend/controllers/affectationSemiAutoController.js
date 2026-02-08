@@ -93,12 +93,12 @@ const genererRapportAlgorithme = (tache, auditeurs, vehicules, details) => {
   rapport += `Places requises: ${tache.NOMBRE_PLACES}\n\n`;
   
   rapport += `=== CRITÈRES D'AFFECTATION ===\n`;
-  rapport += `✓ Tour de rôle (ancienneté)\n`;
-  rapport += `✓ Compatibilité de spécialité\n`;
-  rapport += `✓ Équité de rémunération\n`;
-  rapport += `✓ Disponibilité temporelle\n`;
+  rapport += `Tour de rôle (ancienneté)\n`;
+  rapport += `Compatibilité de spécialité\n`;
+  rapport += `Équité de rémunération\n`;
+  rapport += `Disponibilité temporelle\n`;
   if (tache.NECESSITE_VEHICULE) {
-    rapport += `✓ Disponibilité véhicule\n`;
+    rapport += `Disponibilité véhicule\n`;
   }
   rapport += `\n`;
   

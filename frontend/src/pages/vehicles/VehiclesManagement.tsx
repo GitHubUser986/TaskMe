@@ -131,7 +131,7 @@ const VehiclesManagement: React.FC = () => {
     }
     return (
       <span className="px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
-        Non disponible
+        En mission
       </span>
     );
   };
@@ -197,7 +197,7 @@ const VehiclesManagement: React.FC = () => {
               <div className="text-2xl font-bold text-green-600">{stats.disponibles}</div>
             </div>
             <div className="bg-white rounded-lg shadow-md p-4">
-              <div className="text-sm text-gray-600">Non disponibles</div>
+              <div className="text-sm text-gray-600">En mission</div>
               <div className="text-2xl font-bold text-red-600">{stats.nonDisponibles}</div>
             </div>
             <div className="bg-white rounded-lg shadow-md p-4">

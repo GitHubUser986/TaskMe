@@ -80,7 +80,7 @@ const ManualAssignmentInterface = () => {
 const fetchTaches = async () => {
     try {
       // Charger toutes les tâches
-      const responseTaches = await tacheAPI.getAll();
+      const responseTaches = await tacheAPI.getAllForSelect();
       
       // Charger toutes les affectations pour filtrer les tâches déjà affectées
       const responseAffectations = await affectationAPI.getAll();

@@ -99,7 +99,7 @@ export const login = async (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Email ou mot de passe incorrect101"
+        message: "Email ou mot de passe incorrect"
       });
     }
 
@@ -108,7 +108,7 @@ export const login = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: "Email ou mot de passe incorrect110"
+        message: "Email ou mot de passe incorrect"
       });
     }
 

@@ -243,13 +243,6 @@ const TaskManagement: React.FC = () => {
     }
   };
 
-  const handleArrayChange = (field: 'SPECIALITES_CONCERNEES' | 'GRADES_CONCERNES', value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value.split(',').map(item => item.trim()).filter(Boolean)
-    }));
-  };
-
   const handleSubmitEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTask?.ID) return;
@@ -866,28 +859,52 @@ const TaskManagement: React.FC = () => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Spécialités concernées (séparées par des virgules)
+                  Spécialités concernées
                 </label>
-                <input
-                  type="text"
-                  value={formData.SPECIALITES_CONCERNEES?.join(', ') || ''}
-                  onChange={(e) => handleArrayChange('SPECIALITES_CONCERNEES', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Pédagogique, Orientation, etc."
-                />
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {['Auditeur pédagogique', "Auditeur d'orientation", 'Auditeur de planification', 'Auditeur des services financiers'].map(spec => (
+                    <label key={spec} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.SPECIALITES_CONCERNEES?.includes(spec) || false}
+                        onChange={(e) => {
+                          const currentSpecs = formData.SPECIALITES_CONCERNEES || [];
+                          const newSpecs = e.target.checked
+                            ? [...currentSpecs, spec]
+                            : currentSpecs.filter(s => s !== spec);
+                          setFormData({ ...formData, SPECIALITES_CONCERNEES: newSpecs });
+                        }}
+                        className="w-4 h-4 text-blue-600 focus:ring-blue-500 rounded"
+                      />
+                      <span className="text-sm text-gray-700">{spec.replace('Auditeur ', '').replace("Auditeur d'", '')}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Grades concernés (séparés par des virgules)
+                  Grades concernés
                 </label>
-                <input
-                  type="text"
-                  value={formData.GRADES_CONCERNES?.join(', ') || ''}
-                  onChange={(e) => handleArrayChange('GRADES_CONCERNES', e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Grade A, Grade B, etc."
-                />
+                <div className="flex gap-4">
+                  {['A', 'B', 'C'].map(grade => (
+                    <label key={grade} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.GRADES_CONCERNES?.includes(grade) || false}
+                        onChange={(e) => {
+                          const currentGrades = formData.GRADES_CONCERNES || [];
+                          const newGrades = e.target.checked
+                            ? [...currentGrades, grade]
+                            : currentGrades.filter(g => g !== grade);
+                          setFormData({ ...formData, GRADES_CONCERNES: newGrades });
+                        }}
+                        className="w-4 h-4 text-blue-600 focus:ring-blue-500 rounded"
+                      />
+                      <span className="text-sm text-gray-700">Grade {grade}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
